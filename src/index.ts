@@ -122,20 +122,41 @@ const SERVER_NAME = CONFIG.isLocked
 // TYPES
 // =============================================================================
 
+interface MessagePart {
+  type: string;
+  text?: string;
+}
+
 interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
   createdAt: string;
-  parts: Array<{ type: string; text?: string }>;
+  parts: MessagePart[];
+  revisionId?: string; // Required for assistant messages
 }
 
 interface ConversationState {
   messages: Message[];
+  threadId?: string; // Obtained from X-Thread-Id response header
+}
+
+interface AskResult {
+  answer: string;
+  threadId?: string;
+  messageId?: string;
 }
 
 // Store conversation state per project
 const conversations: Map<string, ConversationState> = new Map();
+
+// =============================================================================
+// UTILITIES
+// =============================================================================
+
+function generateId(): string {
+  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+}
 
 // =============================================================================
 // MINTLIFY API
@@ -144,13 +165,14 @@ const conversations: Map<string, ConversationState> = new Map();
 async function askMintlify(
   projectId: string,
   question: string,
-  conversationHistory: Message[] = []
-): Promise<string> {
+  conversationHistory: Message[] = [],
+  threadId?: string
+): Promise<AskResult> {
   const domain = KNOWN_DOCS[projectId]?.domain || `${projectId}.mintlify.app`;
   const timestamp = new Date().toISOString();
 
   const newMessage: Message = {
-    id: String(conversationHistory.length + 1),
+    id: generateId(),
     role: "user",
     content: question,
     createdAt: timestamp,
@@ -159,6 +181,17 @@ async function askMintlify(
 
   const messages = [...conversationHistory, newMessage];
 
+  // Build request body - only include threadId if we have one from a previous response
+  const requestBody: Record<string, unknown> = {
+    id: projectId,
+    fp: projectId,
+    messages,
+  };
+
+  if (threadId) {
+    requestBody.threadId = threadId;
+  }
+
   const response = await fetch(`${MINTLIFY_API_BASE}/${projectId}/message`, {
     method: "POST",
     headers: {
@@ -166,11 +199,7 @@ async function askMintlify(
       Origin: `https://${domain}`,
       Referer: `https://${domain}/`,
     },
-    body: JSON.stringify({
-      id: projectId,
-      fp: projectId,
-      messages,
-    }),
+    body: JSON.stringify(requestBody),
   });
 
   if (!response.ok) {
@@ -179,20 +208,36 @@ async function askMintlify(
     );
   }
 
+  // Capture X-Thread-Id from response header for subsequent requests
+  const newThreadId = response.headers.get("X-Thread-Id") || threadId;
+
   const text = await response.text();
-  return parseStreamedResponse(text);
+  const { answer, messageId } = parseStreamedResponse(text);
+
+  return { answer, threadId: newThreadId, messageId };
 }
 
 /**
- * Parse SSE response - only extract text chunks (0:) to minimize context usage
- * Skips: f: (metadata), 9: (tool calls), a: (search results ~50-100KB), e: (finish), d: (done)
+ * Parse SSE response - extract text chunks (0:) and messageId (f:)
+ * Skips: 9: (tool calls), a: (search results ~50-100KB), e: (finish), d: (done)
  */
-function parseStreamedResponse(rawResponse: string): string {
+function parseStreamedResponse(rawResponse: string): { answer: string; messageId?: string } {
   const lines = rawResponse.split("\n");
   const textChunks: string[] = [];
+  let messageId: string | undefined;
 
   for (const line of lines) {
-    if (line.startsWith("0:")) {
+    // Extract messageId from metadata line
+    if (line.startsWith("f:")) {
+      try {
+        const metadata = JSON.parse(line.slice(2));
+        messageId = metadata.messageId;
+      } catch {
+        // Ignore parse errors
+      }
+    }
+    // Extract text content
+    else if (line.startsWith("0:")) {
       try {
         const text = JSON.parse(line.slice(2));
         if (typeof text === "string") {
@@ -205,8 +250,8 @@ function parseStreamedResponse(rawResponse: string): string {
     }
   }
 
-  const content = textChunks.join("");
-  return content.trim() || "No response generated. Please try rephrasing your question.";
+  const answer = textChunks.join("").trim() || "No response generated. Please try rephrasing your question.";
+  return { answer, messageId };
 }
 
 // =============================================================================
@@ -216,7 +261,7 @@ function parseStreamedResponse(rawResponse: string): string {
 const server = new Server(
   {
     name: SERVER_NAME,
-    version: "0.1.0",
+    version: "0.2.0",
   },
   {
     capabilities: {
@@ -326,31 +371,35 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const { question } = args as { question: string };
         let state = conversations.get(projectId);
         if (!state) {
-          state = { messages: [] };
+          state = { messages: [], threadId: undefined };
           conversations.set(projectId, state);
         }
 
         try {
-          const answer = await askMintlify(projectId, question, state.messages);
+          const result = await askMintlify(projectId, question, state.messages, state.threadId);
 
-          // Update history
+          // Update threadId from response
+          state.threadId = result.threadId;
+
+          // Update history with proper message format
           const timestamp = new Date().toISOString();
           state.messages.push({
-            id: String(state.messages.length + 1),
+            id: generateId(),
             role: "user",
             content: question,
             createdAt: timestamp,
             parts: [{ type: "text", text: question }],
           });
           state.messages.push({
-            id: String(state.messages.length + 1),
+            id: result.messageId || `msg-${generateId()}`,
             role: "assistant",
-            content: answer,
+            content: result.answer,
             createdAt: new Date().toISOString(),
-            parts: [{ type: "text", text: answer }],
+            parts: [{ type: "step-start" }, { type: "text", text: result.answer }],
+            revisionId: generateId(),
           });
 
-          return { content: [{ type: "text", text: answer }] };
+          return { content: [{ type: "text", text: result.answer }] };
         } catch (error) {
           const msg = error instanceof Error ? error.message : "Unknown error";
           return { content: [{ type: "text", text: `Error: ${msg}` }], isError: true };
@@ -374,30 +423,35 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       let state = conversations.get(project_id);
       if (!state) {
-        state = { messages: [] };
+        state = { messages: [], threadId: undefined };
         conversations.set(project_id, state);
       }
 
       try {
-        const answer = await askMintlify(project_id, question, state.messages);
+        const result = await askMintlify(project_id, question, state.messages, state.threadId);
 
+        // Update threadId from response
+        state.threadId = result.threadId;
+
+        // Update history with proper message format
         const timestamp = new Date().toISOString();
         state.messages.push({
-          id: String(state.messages.length + 1),
+          id: generateId(),
           role: "user",
           content: question,
           createdAt: timestamp,
           parts: [{ type: "text", text: question }],
         });
         state.messages.push({
-          id: String(state.messages.length + 1),
+          id: result.messageId || `msg-${generateId()}`,
           role: "assistant",
-          content: answer,
+          content: result.answer,
           createdAt: new Date().toISOString(),
-          parts: [{ type: "text", text: answer }],
+          parts: [{ type: "step-start" }, { type: "text", text: result.answer }],
+          revisionId: generateId(),
         });
 
-        return { content: [{ type: "text", text: answer }] };
+        return { content: [{ type: "text", text: result.answer }] };
       } catch (error) {
         const msg = error instanceof Error ? error.message : "Unknown error";
         return { content: [{ type: "text", text: `Error: ${msg}` }], isError: true };

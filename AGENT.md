@@ -109,27 +109,35 @@ interface MessagePart {
 
 ### Multi-turn Conversation Example
 
+**IMPORTANT:** For multi-turn conversations, you must:
+1. Omit `threadId` on the first request
+2. Capture `X-Thread-Id` from the response header
+3. Include that `threadId` in subsequent requests
+4. Format assistant messages with `step-start` part and `revisionId`
+
 ```json
 {
   "id": "agno-v2",
   "fp": "agno-v2",
+  "threadId": "01KES7GWVAX9S3QD2EXJGWSVPM",
   "messages": [
     {
-      "id": "1",
+      "id": "abc123xyz",
       "role": "user",
       "content": "what is an agent?",
       "createdAt": "2026-01-12T12:00:00.000Z",
       "parts": [{"type": "text", "text": "what is an agent?"}]
     },
     {
-      "id": "2",
+      "id": "msg-def456abc",
       "role": "assistant",
-      "content": "An Agent is an AI program where a language model controls the flow of execution...",
+      "content": "An Agent is an AI program...",
       "createdAt": "2026-01-12T12:00:05.000Z",
-      "parts": [{"type": "text", "text": "An Agent is an AI program..."}]
+      "parts": [{"type": "step-start"}, {"type": "text", "text": "An Agent is an AI program..."}],
+      "revisionId": "rev123"
     },
     {
-      "id": "3",
+      "id": "ghi789xyz",
       "role": "user",
       "content": "how do I create one?",
       "createdAt": "2026-01-12T12:01:00.000Z",
@@ -147,7 +155,10 @@ The response is a **streaming** SSE (Server-Sent Events) response.
 ```http
 Content-Type: text/plain; charset=utf-8
 Transfer-Encoding: chunked
+X-Thread-Id: 01KES7GWVAX9S3QD2EXJGWSVPM
 ```
+
+**IMPORTANT:** Capture `X-Thread-Id` from the response header and include it in subsequent requests to maintain conversation context.
 
 **SSE Line Prefixes:**
 | Prefix | Content | Size | Action |
