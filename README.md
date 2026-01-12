@@ -2,16 +2,18 @@
 
 > MCP server to query any Mintlify-powered documentation from Claude Code
 
+[![npm version](https://img.shields.io/npm/v/mintlify-mcp.svg)](https://www.npmjs.com/package/mintlify-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## What is this?
 
 An MCP server that lets you query any documentation site powered by [Mintlify](https://mintlify.com) directly from Claude Code.
 
-**Example use cases:**
-- Ask questions about Agno, Resend, or any Mintlify docs
-- Get code examples and explanations without leaving your terminal
-- Multi-turn conversations with documentation context
+**Features:**
+- 🔍 Ask questions about Agno, Resend, or any Mintlify docs
+- 💻 Get code examples and explanations without leaving your terminal
+- 🧠 Multi-turn conversations with memory
+- 🔗 Links converted to absolute URLs (WebFetch compatible)
 
 ## Quick Start
 
@@ -113,7 +115,7 @@ OPTIONS:
 
 ## API Documentation
 
-See [CLAUDE.md](./CLAUDE.md) for complete reverse-engineered API documentation including:
+See [AGENT.md](./AGENT.md) for complete reverse-engineered API documentation including:
 - Endpoint details and schemas
 - Request/response formats
 - cURL examples
@@ -132,5 +134,5 @@ PRs welcome! To add a new documentation site:
 
 ## Acknowledgments
 
-- [Mintlify](https://mintlify.com) for building amazing documentation tooling
+- [Mintlify](https://mintlify.com) ([GitHub](https://github.com/mintlify)) for building amazing documentation tooling
 - [Anthropic](https://anthropic.com) for Claude and the MCP protocol

@@ -13,11 +13,11 @@ import {
 
 const KNOWN_DOCS: Record<string, { name: string; domain: string }> = {
   "agno-v2": { name: "Agno", domain: "docs.agno.com" },
-  "resend": { name: "Resend", domain: "resend.com/docs" },
-  "upstash": { name: "Upstash", domain: "upstash.com/docs" },
-  "mintlify": { name: "Mintlify", domain: "mintlify.com/docs" },
-  "vercel": { name: "Vercel", domain: "vercel.com/docs" },
-  "plain": { name: "Plain", domain: "plain.com/docs" },
+  resend: { name: "Resend", domain: "resend.com/docs" },
+  upstash: { name: "Upstash", domain: "upstash.com/docs" },
+  mintlify: { name: "Mintlify", domain: "mintlify.com/docs" },
+  vercel: { name: "Vercel", domain: "vercel.com/docs" },
+  plain: { name: "Plain", domain: "plain.com/docs" },
 };
 
 // =============================================================================
@@ -54,7 +54,9 @@ OPTIONS:
   -h, --help            Show this help message
 
 KNOWN PROJECT IDs:
-${Object.entries(KNOWN_DOCS).map(([id, info]) => `  ${id.padEnd(12)} ${info.name}`).join("\n")}
+${Object.entries(KNOWN_DOCS)
+  .map(([id, info]) => `  ${id.padEnd(12)} ${info.name}`)
+  .join("\n")}
 
 EXAMPLES:
   bunx mintlify-mcp --project agno-v2
@@ -130,14 +132,20 @@ interface AskResult {
 }
 
 // Store conversation state
-let conversationState: ConversationState = { messages: [], threadId: undefined };
+let conversationState: ConversationState = {
+  messages: [],
+  threadId: undefined,
+};
 
 // =============================================================================
 // UTILITIES
 // =============================================================================
 
 function generateId(): string {
-  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+  return (
+    Math.random().toString(36).substring(2, 15) +
+    Math.random().toString(36).substring(2, 15)
+  );
 }
 
 // =============================================================================
@@ -145,7 +153,8 @@ function generateId(): string {
 // =============================================================================
 
 async function askMintlify(question: string): Promise<AskResult> {
-  const domain = KNOWN_DOCS[CONFIG.projectId]?.domain || `${CONFIG.projectId}.mintlify.app`;
+  const domain =
+    KNOWN_DOCS[CONFIG.projectId]?.domain || `${CONFIG.projectId}.mintlify.app`;
   const timestamp = new Date().toISOString();
 
   const newMessage: Message = {
@@ -168,21 +177,27 @@ async function askMintlify(question: string): Promise<AskResult> {
     requestBody.threadId = conversationState.threadId;
   }
 
-  const response = await fetch(`${MINTLIFY_API_BASE}/${CONFIG.projectId}/message`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Origin: `https://${domain}`,
-      Referer: `https://${domain}/`,
+  const response = await fetch(
+    `${MINTLIFY_API_BASE}/${CONFIG.projectId}/message`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: `https://${domain}`,
+        Referer: `https://${domain}/`,
+      },
+      body: JSON.stringify(requestBody),
     },
-    body: JSON.stringify(requestBody),
-  });
+  );
 
   if (!response.ok) {
-    throw new Error(`Mintlify API error: ${response.status} ${response.statusText}`);
+    throw new Error(
+      `Mintlify API error: ${response.status} ${response.statusText}`,
+    );
   }
 
-  const newThreadId = response.headers.get("X-Thread-Id") || conversationState.threadId;
+  const newThreadId =
+    response.headers.get("X-Thread-Id") || conversationState.threadId;
   const text = await response.text();
   const baseUrl = `https://${domain}`;
   const { answer, messageId } = parseStreamedResponse(text, baseUrl);
@@ -194,7 +209,10 @@ async function askMintlify(question: string): Promise<AskResult> {
  * Parse SSE response - extract text chunks (0:) and messageId (f:)
  * Skips: 9: (tool calls), a: (search results ~50-100KB), e: (finish), d: (done)
  */
-function parseStreamedResponse(rawResponse: string, baseUrl: string): { answer: string; messageId?: string } {
+function parseStreamedResponse(
+  rawResponse: string,
+  baseUrl: string,
+): { answer: string; messageId?: string } {
   const lines = rawResponse.split("\n");
   const textChunks: string[] = [];
   let messageId: string | undefined;
@@ -220,7 +238,9 @@ function parseStreamedResponse(rawResponse: string, baseUrl: string): { answer: 
     }
   }
 
-  let answer = textChunks.join("").trim() || "No response generated. Please try rephrasing your question.";
+  let answer =
+    textChunks.join("").trim() ||
+    "No response generated. Please try rephrasing your question.";
 
   // Fix markdown links and convert to absolute URLs for Claude Code WebFetch compatibility
   answer = fixMarkdownLinks(answer, baseUrl);
@@ -235,14 +255,11 @@ function parseStreamedResponse(rawResponse: string, baseUrl: string): { answer: 
  */
 function fixMarkdownLinks(text: string, baseUrl: string): string {
   // Fix inverted markdown links: (text)[url] → [text](url)
-  let fixed = text.replace(/\(([^)]+)\)\[([^\]]+)\]/g, '[$1]($2)');
+  let fixed = text.replace(/\(([^)]+)\)\[([^\]]+)\]/g, "[$1]($2)");
 
   // Convert relative URLs to absolute (only for paths starting with /)
   // Matches: [any text](/path) but not [text](https://...) or [text](http://...)
-  fixed = fixed.replace(
-    /\[([^\]]+)\]\(\/([^)]+)\)/g,
-    `[$1](${baseUrl}/$2)`
-  );
+  fixed = fixed.replace(/\[([^\]]+)\]\(\/([^)]+)\)/g, `[$1](${baseUrl}/$2)`);
 
   return fixed;
 }
@@ -260,7 +277,7 @@ const server = new Server(
     capabilities: {
       tools: {},
     },
-  }
+  },
 );
 
 // =============================================================================
@@ -325,24 +342,35 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           role: "assistant",
           content: result.answer,
           createdAt: new Date().toISOString(),
-          parts: [{ type: "step-start" }, { type: "text", text: result.answer }],
+          parts: [
+            { type: "step-start" },
+            { type: "text", text: result.answer },
+          ],
           revisionId: generateId(),
         });
 
         return { content: [{ type: "text", text: result.answer }] };
       } catch (error) {
         const msg = error instanceof Error ? error.message : "Unknown error";
-        return { content: [{ type: "text", text: `Error: ${msg}` }], isError: true };
+        return {
+          content: [{ type: "text", text: `Error: ${msg}` }],
+          isError: true,
+        };
       }
     }
 
     case "clear_history": {
       conversationState = { messages: [], threadId: undefined };
-      return { content: [{ type: "text", text: "Conversation history cleared." }] };
+      return {
+        content: [{ type: "text", text: "Conversation history cleared." }],
+      };
     }
 
     default:
-      return { content: [{ type: "text", text: `Unknown tool: ${name}` }], isError: true };
+      return {
+        content: [{ type: "text", text: `Unknown tool: ${name}` }],
+        isError: true,
+      };
   }
 });
 
