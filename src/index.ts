@@ -115,8 +115,8 @@ const MINTLIFY_API_BASE = "https://leaves.mintlify.com/api/assistant";
 
 // Server name changes based on mode
 const SERVER_NAME = CONFIG.isLocked
-  ? `${CONFIG.projectName || CONFIG.projectId}-docs`
-  : "mintlify-mcp";
+  ? `${CONFIG.projectName || CONFIG.projectId} AI Assistant`
+  : "Mintlify AI Assistant";
 
 // =============================================================================
 // TYPES
