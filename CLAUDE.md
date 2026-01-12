@@ -134,9 +134,9 @@ interface MessagePart {
 }
 ```
 
-### Response Format
+### Response Format (SSE)
 
-The response is a **streaming** response using Server-Sent Events (SSE) or chunked transfer encoding.
+The response is a **streaming** SSE (Server-Sent Events) response.
 
 **Response Headers:**
 ```http
@@ -144,11 +144,51 @@ Content-Type: text/plain; charset=utf-8
 Transfer-Encoding: chunked
 ```
 
-**Response Body Structure:**
-The response streams chunks that include:
-- Text content
-- Tool invocations (search results from documentation)
-- Suggestions for related pages
+**SSE Line Prefixes:**
+| Prefix | Content | Size | Action |
+|--------|---------|------|--------|
+| `f:` | Message metadata (messageId) | ~100B | Skip |
+| `9:` | Tool calls (search query) | ~200B | Skip |
+| `a:` | Tool results (FULL docs pages) | **~50-100KB** | **SKIP!** |
+| `0:` | Text chunks (actual response) | ~1-3KB | **KEEP** |
+| `e:` | Finish metadata (tokens used) | ~100B | Skip |
+| `d:` | Done signal | ~50B | Skip |
+
+**Raw SSE Example:**
+```
+f:{"messageId":"msg-abc123"}
+9:{"toolCallId":"toolu_xyz","toolName":"search","args":{"query":"what is agent"}}
+a:{"toolCallId":"toolu_xyz","result":{"type":"search","results":[...50KB OF DOCS...]}}
+0:"An"
+0:" Agent"
+0:" is"
+0:" an"
+0:" AI"
+0:" program"
+0:"."
+e:{"finishReason":"stop","usage":{"promptTokens":15000,"completionTokens":200}}
+d:{"finishReason":"stop"}
+```
+
+### Context Window Optimization
+
+**CRITICAL:** The `a:` chunks contain ENTIRE documentation pages (~50-100KB) that were searched.
+This would **destroy** the Claude Code context window if returned raw.
+
+**Solution:** Only parse `0:` chunks (the actual assistant response text).
+
+```typescript
+// Only keep "0:" chunks - the actual response text
+if (line.startsWith("0:")) {
+  const text = JSON.parse(line.slice(2));
+  textChunks.push(text);
+}
+// SKIP: f:, 9:, a:, e:, d: (metadata and search results)
+```
+
+**Result:**
+- Raw response: ~50-100KB
+- Parsed response: ~1-3KB (97% reduction!)
 
 ### cURL Examples
 
