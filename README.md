@@ -19,6 +19,12 @@ An MCP server that lets you query any documentation site powered by [Mintlify](h
 
 Create a dedicated MCP for each documentation site:
 
+```bash
+claude mcp add agno -- bunx mintlify-mcp --project agno-v2
+```
+
+Or add to your settings manually:
+
 ```json
 {
   "mcpServers": {
@@ -38,6 +44,13 @@ Now when you say **"search for workflows"**, Claude knows to use the `agno` MCP!
 
 ### Multiple Documentation Sites
 
+```bash
+claude mcp add agno -- bunx mintlify-mcp -p agno-v2
+claude mcp add resend -- bunx mintlify-mcp -p resend
+```
+
+Or in settings:
+
 ```json
 {
   "mcpServers": {
@@ -56,6 +69,12 @@ Now when you say **"search for workflows"**, Claude knows to use the `agno` MCP!
 ### Generic Mode
 
 Query any Mintlify docs without pre-configuration:
+
+```bash
+claude mcp add mintlify -- bunx mintlify-mcp
+```
+
+Or in settings:
 
 ```json
 {
