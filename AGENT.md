@@ -293,44 +293,36 @@ POST https://docs.{domain}/_mintlify/api/v1/e
 3. **Rate Limits**: Unknown, but likely exists
 4. **Project Discovery**: Need to manually find project IDs
 
-## MCP Implementation Notes
+## MCP Implementation
 
-### Suggested Tools
+### Tools
 
 ```typescript
 // Tool 1: Ask a question to documentation
-interface AskDocsTool {
-  name: "ask_docs";
-  description: "Ask a question to Mintlify-powered documentation";
+interface AskTool {
+  name: "ask";
+  description: "Ask a question about {projectName} documentation";
   parameters: {
-    project_id: string;  // e.g., "agno-v2"
     question: string;
-    conversation_history?: Message[];
   };
 }
 
-// Tool 2: List known documentation sites
-interface ListDocsTool {
-  name: "list_docs";
-  description: "List available Mintlify documentation sites";
-}
-
-// Tool 3: Discover project ID from URL
-interface DiscoverProjectTool {
-  name: "discover_project";
-  description: "Discover Mintlify project ID from documentation URL";
-  parameters: {
-    docs_url: string;  // e.g., "https://docs.agno.com"
-  };
+// Tool 2: Clear conversation history
+interface ClearHistoryTool {
+  name: "clear_history";
+  description: "Clear conversation history to start fresh";
 }
 ```
 
-### Configuration
+### CLI Usage
 
-Users should be able to configure:
-- Custom documentation sites (project ID + domain)
-- Default project to query
-- Response format preferences
+```bash
+# Required: specify project ID
+bunx mintlify-mcp --project agno-v2
+
+# Optional: custom display name
+bunx mintlify-mcp -p agno-v2 -n "Agno Docs"
+```
 
 ## Development Commands
 

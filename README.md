@@ -15,10 +15,6 @@ An MCP server that lets you query any documentation site powered by [Mintlify](h
 
 ## Quick Start
 
-### Recommended: Specialized Mode
-
-Create a dedicated MCP for each documentation site:
-
 ```bash
 claude mcp add agno -- bunx mintlify-mcp --project agno-v2
 ```
@@ -30,13 +26,11 @@ Or add to your settings manually:
   "mcpServers": {
     "agno": {
       "command": "bunx",
-      "args": ["mintlify-mcp", "--project", "agno-v2"]
+      "args": ["mintlify-mcp", "-p", "agno-v2"]
     }
   }
 }
 ```
-
-Now when you say **"search for workflows"**, Claude knows to use the `agno` MCP!
 
 **Tools available:**
 - `ask` - Ask any question about the docs
@@ -66,32 +60,6 @@ Or in settings:
 }
 ```
 
-### Generic Mode
-
-Query any Mintlify docs without pre-configuration:
-
-```bash
-claude mcp add mintlify -- bunx mintlify-mcp
-```
-
-Or in settings:
-
-```json
-{
-  "mcpServers": {
-    "mintlify": {
-      "command": "bunx",
-      "args": ["mintlify-mcp"]
-    }
-  }
-}
-```
-
-**Tools available:**
-- `ask_docs` - Query docs (requires `project_id`)
-- `list_docs` - Show known documentation sites
-- `clear_conversation` - Reset history
-
 ## Known Project IDs
 
 | Documentation | Project ID | Status |
@@ -118,7 +86,7 @@ Or in settings:
 bunx mintlify-mcp --help
 
 OPTIONS:
-  -p, --project <id>    Lock to a specific project ID
+  -p, --project <id>    Mintlify project ID (required)
   -n, --name <name>     Custom display name
   -h, --help            Show help
 ```
