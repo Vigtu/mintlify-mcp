@@ -1,3 +1,4 @@
+import { join, dirname } from "node:path";
 import {
   saveProjectConfig,
   projectExists,
@@ -6,8 +7,8 @@ import {
   createDefaultProjectConfig,
   type ProjectConfig,
 } from "../config/schema";
-import { paths, ensureDirExists } from "../config/paths";
-import { discoverPages, isMintlifySite } from "../discovery";
+import { paths, ensureDirExists, fileExists } from "../config/paths";
+import { discoverPages, isMintlifySite, getMarkdownUrl, type DiscoveredPage } from "../discovery";
 
 // =============================================================================
 // CREATE COMMAND - Create a new project
@@ -21,6 +22,8 @@ export interface CreateOptions {
   backend?: "agno" | "mintlify";
   mintlifyProjectId?: string;
   skipSeed?: boolean;
+  download?: boolean;
+  parallel?: number;
   verbose?: boolean;
 }
 
@@ -33,6 +36,8 @@ export async function createCommand(options: CreateOptions): Promise<void> {
     backend = "agno",
     mintlifyProjectId,
     skipSeed = false,
+    download = false,
+    parallel = 3,
     verbose = false,
   } = options;
 
@@ -116,6 +121,23 @@ export async function createCommand(options: CreateOptions): Promise<void> {
   console.log(`\nProject "${id}" created successfully!`);
   console.log(`Config saved to: ${paths.projectConfig(id)}`);
 
+  // Download markdown files if requested
+  if (download) {
+    console.log("\nDownloading documentation...");
+    const docsDir = join(process.cwd(), "downloaded-docs", id);
+    await ensureDirExists(docsDir);
+
+    const result = await downloadPages(discovery.pages, docsDir, {
+      parallel,
+      verbose,
+    });
+
+    console.log(`\nDownload complete:`);
+    console.log(`  Success: ${result.success}`);
+    console.log(`  Errors:  ${result.errors}`);
+    console.log(`  Saved to: ${docsDir}`);
+  }
+
   // Show next steps
   console.log("\nNext steps:");
 
@@ -150,4 +172,103 @@ function extractSiteName(url: string): string {
     .join(" ");
 
   return `${name} Docs`;
+}
+
+// =============================================================================
+// DOWNLOAD HELPERS
+// =============================================================================
+
+interface DownloadOptions {
+  parallel: number;
+  verbose: boolean;
+}
+
+interface DownloadResult {
+  success: number;
+  errors: number;
+}
+
+/** Download all pages to local directory */
+async function downloadPages(
+  pages: DiscoveredPage[],
+  outputDir: string,
+  options: DownloadOptions
+): Promise<DownloadResult> {
+  const { parallel, verbose } = options;
+  let success = 0;
+  let errors = 0;
+
+  // Process in batches
+  for (let i = 0; i < pages.length; i += parallel) {
+    const batch = pages.slice(i, i + parallel);
+
+    // Progress indicator
+    process.stdout.write(
+      `\rDownloading: ${Math.min(i + parallel, pages.length)}/${pages.length} pages...`
+    );
+
+    const results = await Promise.all(
+      batch.map((page) => downloadPage(page, outputDir, verbose))
+    );
+
+    for (const ok of results) {
+      if (ok) success++;
+      else errors++;
+    }
+  }
+
+  console.log(); // New line after progress
+  return { success, errors };
+}
+
+/** Download a single page's markdown */
+async function downloadPage(
+  page: DiscoveredPage,
+  outputDir: string,
+  verbose: boolean
+): Promise<boolean> {
+  const mdUrl = getMarkdownUrl(page);
+  const localPath = getLocalPath(page, outputDir);
+
+  try {
+    const response = await fetch(mdUrl, {
+      headers: {
+        "User-Agent": "mintlify-mcp/1.0",
+        Accept: "text/markdown, text/plain, */*",
+      },
+    });
+
+    if (!response.ok) {
+      if (verbose) {
+        console.error(`\n  Error ${response.status}: ${page.path}`);
+      }
+      return false;
+    }
+
+    const content = await response.text();
+
+    // Ensure parent directory exists
+    await ensureDirExists(dirname(localPath));
+
+    // Write file
+    await Bun.write(localPath, content);
+
+    if (verbose) {
+      console.log(`\n  Downloaded: ${page.path}`);
+    }
+
+    return true;
+  } catch (error) {
+    if (verbose) {
+      console.error(`\n  Error: ${page.path} - ${error}`);
+    }
+    return false;
+  }
+}
+
+/** Convert page path to local file path */
+function getLocalPath(page: DiscoveredPage, outputDir: string): string {
+  // Remove leading slash and add .md extension
+  const relativePath = page.path.replace(/^\//, "").replace(/\/$/, "");
+  return join(outputDir, `${relativePath}.md`);
 }

@@ -32,6 +32,9 @@ export const paths = {
 
   /** Get PID file for AgentOS: ~/.mintlify-mcp/projects/{id}/agent.pid */
   projectPid: (id: string) => join(DATA_DIR, "projects", id, "agent.pid"),
+
+  /** Get project docs directory: ~/.mintlify-mcp/projects/{id}/docs */
+  projectDocs: (id: string) => join(DATA_DIR, "projects", id, "docs"),
 };
 
 /** Ensure directory exists using Bun's native mkdir */
