@@ -40,7 +40,9 @@
     "bun": ">=1.0.0"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.0"
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "fast-xml-parser": "^5.3.3",
+    "yaml": "^2.8.2"
   },
   "devDependencies": {
     "@types/bun": "latest",
