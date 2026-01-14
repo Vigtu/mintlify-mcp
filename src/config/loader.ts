@@ -62,7 +62,14 @@ export async function saveGlobalConfig(config: GlobalConfig): Promise<void> {
 export async function listProjects(): Promise<string[]> {
   const projectsDir = paths.projects;
 
-  if (!(await fileExists(projectsDir))) {
+  // Check if directory exists using Bun.spawn
+  const checkProc = Bun.spawn(["test", "-d", projectsDir], {
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const checkCode = await checkProc.exited;
+
+  if (checkCode !== 0) {
     return [];
   }
 

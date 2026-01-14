@@ -1,14 +1,18 @@
 #!/usr/bin/env bun
 
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from "@modelcontextprotocol/sdk/types.js";
+import { createCommand } from "./cli/create";
+import { serveCommand } from "./cli/serve";
+import { seedCommand } from "./cli/seed";
+import { startCommand } from "./cli/start";
+import { stopCommand, stopAllCommand } from "./cli/stop";
+import { listCommand } from "./cli/list";
+
+// Mintlify API mode imports
+import { createMintlifyBackend } from "./backends/mintlify";
+import { startMcpServer } from "./server";
 
 // =============================================================================
-// KNOWN DOCUMENTATION SITES
+// KNOWN DOCUMENTATION SITES (Mintlify API mode)
 // =============================================================================
 
 const KNOWN_DOCS: Record<string, { name: string; domain: string }> = {
@@ -24,364 +28,245 @@ const KNOWN_DOCS: Record<string, { name: string; domain: string }> = {
 // CLI ARGUMENT PARSING
 // =============================================================================
 
-interface CLIConfig {
-  projectId: string;
-  projectName: string;
-}
+function showHelp(): void {
+  console.log(`
+mintlify-mcp - Query any Mintlify-powered documentation from Claude Code
 
-function parseArgs(): CLIConfig {
-  const args = process.argv.slice(2);
-  let projectId: string | undefined;
-  let projectName: string | undefined;
-
-  for (let i = 0; i < args.length; i++) {
-    if (args[i] === "--project" || args[i] === "-p") {
-      projectId = args[i + 1];
-      i++;
-    } else if (args[i] === "--name" || args[i] === "-n") {
-      projectName = args[i + 1];
-      i++;
-    } else if (args[i] === "--help" || args[i] === "-h") {
-      console.log(`
-mintlify-mcp - Query Mintlify-powered documentation from Claude Code
+COMMANDS:
+  create    Create a new documentation project
+  serve     Start MCP server for Claude Code
+  seed      Seed documentation into knowledge base
+  start     Start AgentOS server (for Agno backend)
+  stop      Stop AgentOS server
+  list      List all projects
 
 USAGE:
-  bunx mintlify-mcp --project <id> [options]
+  mintlify-mcp create --url <docs-url> --id <project-id> [options]
+  mintlify-mcp serve --project <id>
+  mintlify-mcp seed --project <id>
+  mintlify-mcp start --project <id>
+  mintlify-mcp stop --project <id>
+  mintlify-mcp list
 
-OPTIONS:
-  -p, --project <id>    Mintlify project ID (required)
-  -n, --name <name>     Custom display name (default: auto-detected)
-  -h, --help            Show this help message
+CREATE OPTIONS:
+  --url <url>           Documentation site URL (required)
+  --id <id>             Project ID (required)
+  --name <name>         Display name (optional)
+  --prefix <path>       Only include pages under this path (optional)
+  --backend <type>      Backend type: agno or mintlify (default: agno)
 
-KNOWN PROJECT IDs:
+SERVE OPTIONS:
+  --project <id>        Project ID (required)
+
+MINTLIFY API (for sites with AI Assistant feature):
+  mintlify-mcp -p <mintlify-project-id>
+  mintlify-mcp -p <mintlify-project-id> -n <name>
+
+KNOWN MINTLIFY PROJECT IDs:
 ${Object.entries(KNOWN_DOCS)
   .map(([id, info]) => `  ${id.padEnd(12)} ${info.name}`)
   .join("\n")}
 
 EXAMPLES:
-  bunx mintlify-mcp --project agno-v2
-  bunx mintlify-mcp -p resend -n "Resend Email"
+  # Mintlify API: Use site's built-in AI Assistant
+  mintlify-mcp -p agno-v2
+  mintlify-mcp -p resend -n "Resend Docs"
+
+  # Local Agent: Create your own AI Assistant (works with ANY Mintlify site)
+  mintlify-mcp create --url https://docs.example.com --id my-docs
+  mintlify-mcp create --url https://docs.example.com --id my-docs --prefix /guides
+  mintlify-mcp start --project my-docs
+  mintlify-mcp seed --project my-docs
+  mintlify-mcp serve --project my-docs
 
 CLAUDE CODE CONFIGURATION:
-  claude mcp add agno-assistant -- bunx mintlify-mcp -p agno-v2
-
-  Or in settings.json:
-  {
-    "mcpServers": {
-      "agno-assistant": {
-        "command": "bunx",
-        "args": ["mintlify-mcp", "-p", "agno-v2"]
-      }
-    }
-  }
+  claude mcp add my-docs -- bunx mintlify-mcp serve --project my-docs
 `);
-      process.exit(0);
+}
+
+interface ParsedArgs {
+  command?: string;
+  flags: Record<string, string | boolean>;
+  positional: string[];
+}
+
+function parseArgs(args: string[]): ParsedArgs {
+  const result: ParsedArgs = { flags: {}, positional: [] };
+
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+
+    if (arg === "--help" || arg === "-h") {
+      result.flags.help = true;
+    } else if (arg === "--verbose" || arg === "-v") {
+      result.flags.verbose = true;
+    } else if (arg === "--force" || arg === "-f") {
+      result.flags.force = true;
+    } else if (arg.startsWith("--")) {
+      const key = arg.slice(2);
+      const next = args[i + 1];
+      if (next && !next.startsWith("-")) {
+        result.flags[key] = next;
+        i++;
+      } else {
+        result.flags[key] = true;
+      }
+    } else if (arg.startsWith("-")) {
+      const key = arg.slice(1);
+      const next = args[i + 1];
+      // Map short flags to long flags
+      const longKey =
+        key === "p" ? "project" :
+        key === "n" ? "name" :
+        key === "u" ? "url" :
+        key === "i" ? "id" :
+        key;
+
+      if (next && !next.startsWith("-")) {
+        result.flags[longKey] = next;
+        i++;
+      } else {
+        result.flags[longKey] = true;
+      }
+    } else if (!result.command) {
+      result.command = arg;
+    } else {
+      result.positional.push(arg);
     }
   }
 
-  if (!projectId) {
-    console.error("Error: --project <id> is required\n");
-    console.error("Usage: bunx mintlify-mcp --project <project-id>");
-    console.error("       bunx mintlify-mcp --help for more info");
-    process.exit(1);
+  return result;
+}
+
+// =============================================================================
+// MAIN
+// =============================================================================
+
+async function main(): Promise<void> {
+  const args = process.argv.slice(2);
+
+  if (args.length === 0) {
+    showHelp();
+    process.exit(0);
   }
 
-  // Auto-detect name from known docs if not provided
-  if (!projectName) {
-    projectName = KNOWN_DOCS[projectId]?.name || projectId;
+  const parsed = parseArgs(args);
+
+  if (parsed.flags.help) {
+    showHelp();
+    process.exit(0);
   }
 
-  return { projectId, projectName };
-}
-
-// =============================================================================
-// CONFIGURATION
-// =============================================================================
-
-const CONFIG = parseArgs();
-const MINTLIFY_API_BASE = "https://leaves.mintlify.com/api/assistant";
-const SERVER_NAME = `${CONFIG.projectName} AI Assistant`;
-
-// =============================================================================
-// TYPES
-// =============================================================================
-
-interface MessagePart {
-  type: string;
-  text?: string;
-}
-
-interface Message {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  createdAt: string;
-  parts: MessagePart[];
-  revisionId?: string;
-}
-
-interface ConversationState {
-  messages: Message[];
-  threadId?: string;
-}
-
-interface AskResult {
-  answer: string;
-  threadId?: string;
-  messageId?: string;
-}
-
-// Store conversation state
-let conversationState: ConversationState = {
-  messages: [],
-  threadId: undefined,
-};
-
-// =============================================================================
-// UTILITIES
-// =============================================================================
-
-function generateId(): string {
-  return (
-    Math.random().toString(36).substring(2, 15) +
-    Math.random().toString(36).substring(2, 15)
-  );
-}
-
-// =============================================================================
-// MINTLIFY API
-// =============================================================================
-
-async function askMintlify(question: string): Promise<AskResult> {
-  const domain =
-    KNOWN_DOCS[CONFIG.projectId]?.domain || `${CONFIG.projectId}.mintlify.app`;
-  const timestamp = new Date().toISOString();
-
-  const newMessage: Message = {
-    id: generateId(),
-    role: "user",
-    content: question,
-    createdAt: timestamp,
-    parts: [{ type: "text", text: question }],
-  };
-
-  const messages = [...conversationState.messages, newMessage];
-
-  const requestBody: Record<string, unknown> = {
-    id: CONFIG.projectId,
-    fp: CONFIG.projectId,
-    messages,
-  };
-
-  if (conversationState.threadId) {
-    requestBody.threadId = conversationState.threadId;
-  }
-
-  const response = await fetch(
-    `${MINTLIFY_API_BASE}/${CONFIG.projectId}/message`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Origin: `https://${domain}`,
-        Referer: `https://${domain}/`,
-      },
-      body: JSON.stringify(requestBody),
-    },
-  );
-
-  if (!response.ok) {
-    throw new Error(
-      `Mintlify API error: ${response.status} ${response.statusText}`,
-    );
-  }
-
-  const newThreadId =
-    response.headers.get("X-Thread-Id") || conversationState.threadId;
-  const text = await response.text();
-  const baseUrl = `https://${domain}`;
-  const { answer, messageId } = parseStreamedResponse(text, baseUrl);
-
-  return { answer, threadId: newThreadId, messageId };
-}
-
-/**
- * Parse SSE response - extract text chunks (0:) and messageId (f:)
- * Skips: 9: (tool calls), a: (search results ~50-100KB), e: (finish), d: (done)
- */
-function parseStreamedResponse(
-  rawResponse: string,
-  baseUrl: string,
-): { answer: string; messageId?: string } {
-  const lines = rawResponse.split("\n");
-  const textChunks: string[] = [];
-  let messageId: string | undefined;
-
-  for (const line of lines) {
-    if (line.startsWith("f:")) {
-      try {
-        const metadata = JSON.parse(line.slice(2));
-        messageId = metadata.messageId;
-      } catch {
-        // Ignore parse errors
+  // Handle commands
+  switch (parsed.command) {
+    case "create":
+      if (!parsed.flags.url || !parsed.flags.id) {
+        console.error("Error: --url and --id are required for create command");
+        console.error("Usage: mintlify-mcp create --url <docs-url> --id <project-id>");
+        process.exit(1);
       }
-    } else if (line.startsWith("0:")) {
-      try {
-        const text = JSON.parse(line.slice(2));
-        if (typeof text === "string") {
-          textChunks.push(text);
-        }
-      } catch {
-        const text = line.slice(2).replace(/^"|"$/g, "");
-        if (text) textChunks.push(text);
+      await createCommand({
+        url: parsed.flags.url as string,
+        id: parsed.flags.id as string,
+        name: parsed.flags.name as string | undefined,
+        prefix: parsed.flags.prefix as string | undefined,
+        backend: (parsed.flags.backend as "agno" | "mintlify") || "agno",
+        verbose: Boolean(parsed.flags.verbose),
+      });
+      break;
+
+    case "serve":
+      if (!parsed.flags.project) {
+        console.error("Error: --project is required for serve command");
+        console.error("Usage: mintlify-mcp serve --project <id>");
+        process.exit(1);
       }
-    }
-  }
+      await serveCommand({ project: parsed.flags.project as string });
+      break;
 
-  let answer =
-    textChunks.join("").trim() ||
-    "No response generated. Please try rephrasing your question.";
+    case "seed":
+      if (!parsed.flags.project) {
+        console.error("Error: --project is required for seed command");
+        console.error("Usage: mintlify-mcp seed --project <id>");
+        process.exit(1);
+      }
+      await seedCommand({
+        project: parsed.flags.project as string,
+        force: Boolean(parsed.flags.force),
+        verbose: Boolean(parsed.flags.verbose),
+      });
+      break;
 
-  // Fix markdown links and convert to absolute URLs for Claude Code WebFetch compatibility
-  answer = fixMarkdownLinks(answer, baseUrl);
+    case "start":
+      if (!parsed.flags.project) {
+        console.error("Error: --project is required for start command");
+        console.error("Usage: mintlify-mcp start --project <id>");
+        process.exit(1);
+      }
+      await startCommand({
+        project: parsed.flags.project as string,
+        port: parsed.flags.port ? parseInt(parsed.flags.port as string) : undefined,
+        verbose: Boolean(parsed.flags.verbose),
+      });
+      break;
 
-  return { answer, messageId };
-}
-
-/**
- * Fix markdown links in response:
- * 1. Correct inverted format: (text)[/path] → [text](/path)
- * 2. Convert relative URLs to absolute: [text](/path) → [text](https://domain/path)
- */
-function fixMarkdownLinks(text: string, baseUrl: string): string {
-  // Fix inverted markdown links: (text)[url] → [text](url)
-  let fixed = text.replace(/\(([^)]+)\)\[([^\]]+)\]/g, "[$1]($2)");
-
-  // Convert relative URLs to absolute (only for paths starting with /)
-  // Matches: [any text](/path) but not [text](https://...) or [text](http://...)
-  fixed = fixed.replace(/\[([^\]]+)\]\(\/([^)]+)\)/g, `[$1](${baseUrl}/$2)`);
-
-  return fixed;
-}
-
-// =============================================================================
-// MCP SERVER
-// =============================================================================
-
-const server = new Server(
-  {
-    name: SERVER_NAME,
-    version: "0.2.0",
-  },
-  {
-    capabilities: {
-      tools: {},
-    },
-  },
-);
-
-// =============================================================================
-// TOOLS
-// =============================================================================
-
-server.setRequestHandler(ListToolsRequestSchema, async () => {
-  return {
-    tools: [
-      {
-        name: "ask",
-        description: `Ask a question about ${CONFIG.projectName} documentation. The AI will search the docs and provide a relevant answer with code examples.`,
-        inputSchema: {
-          type: "object" as const,
-          properties: {
-            question: {
-              type: "string",
-              description: `Your question about ${CONFIG.projectName}`,
-            },
-          },
-          required: ["question"],
-        },
-      },
-      {
-        name: "clear_history",
-        description: "Clear conversation history to start fresh",
-        inputSchema: {
-          type: "object" as const,
-          properties: {},
-        },
-      },
-    ],
-  };
-});
-
-// =============================================================================
-// TOOL HANDLERS
-// =============================================================================
-
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
-
-  switch (name) {
-    case "ask": {
-      const { question } = args as { question: string };
-
-      try {
-        const result = await askMintlify(question);
-
-        // Update state
-        conversationState.threadId = result.threadId;
-        const timestamp = new Date().toISOString();
-        conversationState.messages.push({
-          id: generateId(),
-          role: "user",
-          content: question,
-          createdAt: timestamp,
-          parts: [{ type: "text", text: question }],
+    case "stop":
+      if (parsed.flags.all) {
+        await stopAllCommand();
+      } else if (!parsed.flags.project) {
+        console.error("Error: --project is required for stop command");
+        console.error("Usage: mintlify-mcp stop --project <id>");
+        process.exit(1);
+      } else {
+        await stopCommand({
+          project: parsed.flags.project as string,
+          force: Boolean(parsed.flags.force),
         });
-        conversationState.messages.push({
-          id: result.messageId || `msg-${generateId()}`,
-          role: "assistant",
-          content: result.answer,
-          createdAt: new Date().toISOString(),
-          parts: [
-            { type: "step-start" },
-            { type: "text", text: result.answer },
-          ],
-          revisionId: generateId(),
-        });
-
-        return { content: [{ type: "text", text: result.answer }] };
-      } catch (error) {
-        const msg = error instanceof Error ? error.message : "Unknown error";
-        return {
-          content: [{ type: "text", text: `Error: ${msg}` }],
-          isError: true,
-        };
       }
-    }
+      break;
 
-    case "clear_history": {
-      conversationState = { messages: [], threadId: undefined };
-      return {
-        content: [{ type: "text", text: "Conversation history cleared." }],
-      };
-    }
+    case "list":
+      await listCommand();
+      break;
+
+    case "help":
+      showHelp();
+      break;
 
     default:
-      return {
-        content: [{ type: "text", text: `Unknown tool: ${name}` }],
-        isError: true,
-      };
+      // MINTLIFY API MODE: If no command but --project flag, use Mintlify's API
+      if (parsed.flags.project) {
+        const projectId = parsed.flags.project as string;
+        const knownDoc = KNOWN_DOCS[projectId];
+
+        if (knownDoc) {
+          // Use Mintlify backend for known docs
+          const backend = createMintlifyBackend(projectId, knownDoc.domain);
+          const projectName = (parsed.flags.name as string) || knownDoc.name;
+          await startMcpServer(backend, projectName);
+        } else {
+          // Try to load from config
+          const { loadProjectConfig } = await import("./config/loader");
+          const config = await loadProjectConfig(projectId);
+
+          if (config) {
+            await serveCommand({ project: projectId });
+          } else {
+            // Fallback to Mintlify API with guessed domain
+            const domain = `${projectId}.mintlify.app`;
+            const backend = createMintlifyBackend(projectId, domain);
+            const projectName = (parsed.flags.name as string) || projectId;
+            await startMcpServer(backend, projectName);
+          }
+        }
+      } else if (parsed.command) {
+        console.error(`Unknown command: ${parsed.command}`);
+        console.error("Run 'mintlify-mcp --help' for usage information.");
+        process.exit(1);
+      } else {
+        showHelp();
+      }
   }
-});
-
-// =============================================================================
-// START SERVER
-// =============================================================================
-
-async function main() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  console.error(`${SERVER_NAME} running`);
 }
 
 main().catch((error) => {
