@@ -29,3 +29,6 @@ coverage/
 
 # TypeScript cache
 *.tsbuildinfo
+
+# Downloaded documentation
+downloaded-docs/

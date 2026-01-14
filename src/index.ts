@@ -54,6 +54,8 @@ CREATE OPTIONS:
   --name <name>         Display name (optional)
   --prefix <path>       Only include pages under this path (optional)
   --backend <type>      Backend type: agno or mintlify (default: agno)
+  --download            Download all markdown files locally
+  --parallel <n>        Concurrent downloads (default: 3)
 
 SERVE OPTIONS:
   --project <id>        Project ID (required)
@@ -75,6 +77,7 @@ EXAMPLES:
   # Local Agent: Create your own AI Assistant (works with ANY Mintlify site)
   mintlify-mcp create --url https://docs.example.com --id my-docs
   mintlify-mcp create --url https://docs.example.com --id my-docs --prefix /guides
+  mintlify-mcp create --url https://docs.example.com --id my-docs --download
   mintlify-mcp start --project my-docs
   mintlify-mcp seed --project my-docs
   mintlify-mcp serve --project my-docs
@@ -120,6 +123,7 @@ function parseArgs(args: string[]): ParsedArgs {
         key === "n" ? "name" :
         key === "u" ? "url" :
         key === "i" ? "id" :
+        key === "d" ? "download" :
         key;
 
       if (next && !next.startsWith("-")) {
@@ -171,6 +175,8 @@ async function main(): Promise<void> {
         name: parsed.flags.name as string | undefined,
         prefix: parsed.flags.prefix as string | undefined,
         backend: (parsed.flags.backend as "agno" | "mintlify") || "agno",
+        download: Boolean(parsed.flags.download),
+        parallel: parsed.flags.parallel ? parseInt(parsed.flags.parallel as string) : undefined,
         verbose: Boolean(parsed.flags.verbose),
       });
       break;
