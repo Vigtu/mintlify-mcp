@@ -1,5 +1,5 @@
-import { loadProjectConfig } from "../config/loader";
-import { paths, fileExists } from "../config/paths";
+import { loadProjectConfig, listProjects } from "../config/loader";
+import { paths, fileExists, remove } from "../config/paths";
 
 // =============================================================================
 // STOP COMMAND - Stop AgentOS server for a project
@@ -27,22 +27,24 @@ export async function stopCommand(options: StopOptions): Promise<void> {
     return;
   }
 
-  // Read PID
+  // Read PID using Bun.file()
   const pidContent = await Bun.file(pidFile).text();
   const pid = parseInt(pidContent.trim(), 10);
 
   if (isNaN(pid)) {
     console.error("Invalid PID file. Removing...");
-    await Bun.spawn(["rm", "-f", pidFile]).exited;
+    await remove(pidFile);
     return;
   }
 
   console.log(`Stopping AgentOS (PID: ${pid})...`);
 
-  // Kill the process
-  const signal = force ? "SIGKILL" : "SIGTERM";
-  const killProc = Bun.spawn(["kill", `-${signal}`, String(pid)]);
-  await killProc.exited;
+  // Kill the process using process.kill (Bun native)
+  try {
+    process.kill(pid, force ? "SIGKILL" : "SIGTERM");
+  } catch {
+    // Process may already be dead
+  }
 
   // Wait a bit for graceful shutdown
   if (!force) {
@@ -50,40 +52,42 @@ export async function stopCommand(options: StopOptions): Promise<void> {
   }
 
   // Remove PID file
-  await Bun.spawn(["rm", "-f", pidFile]).exited;
+  await remove(pidFile);
 
   console.log("AgentOS stopped.");
 }
 
 /** Stop all running AgentOS instances */
 export async function stopAllCommand(): Promise<void> {
-  // Find all agent.pid files
-  const proc = Bun.spawn(
-    ["find", paths.projects, "-name", "agent.pid", "-type", "f"],
-    { stdout: "pipe" }
-  );
+  const projectIds = await listProjects();
+  let stoppedCount = 0;
 
-  const output = await new Response(proc.stdout).text();
-  await proc.exited;
+  for (const projectId of projectIds) {
+    const pidFile = paths.projectPid(projectId);
 
-  const pidFiles = output.trim().split("\n").filter(Boolean);
+    if (!(await fileExists(pidFile))) {
+      continue;
+    }
 
-  if (pidFiles.length === 0) {
-    console.log("No running AgentOS instances found.");
-    return;
-  }
-
-  for (const pidFile of pidFiles) {
     const pidContent = await Bun.file(pidFile).text();
     const pid = parseInt(pidContent.trim(), 10);
 
     if (!isNaN(pid)) {
-      console.log(`Stopping PID ${pid}...`);
-      await Bun.spawn(["kill", "-SIGTERM", String(pid)]).exited;
+      console.log(`Stopping ${projectId} (PID: ${pid})...`);
+      try {
+        process.kill(pid, "SIGTERM");
+      } catch {
+        // Process may already be dead
+      }
+      stoppedCount++;
     }
 
-    await Bun.spawn(["rm", "-f", pidFile]).exited;
+    await remove(pidFile);
   }
 
-  console.log(`Stopped ${pidFiles.length} AgentOS instance(s).`);
+  if (stoppedCount === 0) {
+    console.log("No running AgentOS instances found.");
+  } else {
+    console.log(`Stopped ${stoppedCount} AgentOS instance(s).`);
+  }
 }

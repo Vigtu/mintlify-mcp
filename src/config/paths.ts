@@ -1,11 +1,12 @@
-import { homedir } from "os";
-import { join } from "path";
+import { mkdir, readdir, stat, rm } from "node:fs/promises";
+import { join } from "node:path";
 
 // =============================================================================
-// DATA DIRECTORY PATHS
+// DATA DIRECTORY PATHS - Using Bun's native node:fs implementation
 // =============================================================================
 
-const DATA_DIR = process.env.MINTLIFY_DATA_DIR || join(homedir(), ".mintlify-mcp");
+const HOME = process.env.HOME || Bun.env.HOME || "/tmp";
+const DATA_DIR = process.env.MINTLIFY_DATA_DIR || join(HOME, ".mintlify-mcp");
 
 export const paths = {
   /** Root data directory: ~/.mintlify-mcp */
@@ -33,38 +34,36 @@ export const paths = {
   projectPid: (id: string) => join(DATA_DIR, "projects", id, "agent.pid"),
 };
 
-/** Ensure directory exists using Bun's native file API */
-export async function ensureDir(path: string): Promise<void> {
-  const file = Bun.file(path);
-  const exists = await file.exists();
-
-  if (!exists) {
-    await Bun.write(join(path, ".keep"), "");
-    // Remove the .keep file, we just needed to create the directory
-    const keepFile = Bun.file(join(path, ".keep"));
-    if (await keepFile.exists()) {
-      await Bun.spawn(["rm", join(path, ".keep")]).exited;
-    }
-  }
-}
-
-/** Ensure directory exists using mkdir -p */
+/** Ensure directory exists using Bun's native mkdir */
 export async function ensureDirExists(path: string): Promise<void> {
-  await Bun.spawn(["mkdir", "-p", path]).exited;
+  await mkdir(path, { recursive: true });
 }
 
-/** Check if file exists using Bun's native API */
+/** Check if file exists using Bun.file() */
 export async function fileExists(path: string): Promise<boolean> {
   return Bun.file(path).exists();
 }
 
-/** Check if directory exists */
+/** Check if directory exists using stat */
 export async function dirExists(path: string): Promise<boolean> {
   try {
-    const proc = Bun.spawn(["test", "-d", path]);
-    const code = await proc.exited;
-    return code === 0;
+    const stats = await stat(path);
+    return stats.isDirectory();
   } catch {
     return false;
   }
+}
+
+/** List directory contents */
+export async function listDir(path: string): Promise<string[]> {
+  try {
+    return await readdir(path);
+  } catch {
+    return [];
+  }
+}
+
+/** Remove file or directory */
+export async function remove(path: string): Promise<void> {
+  await rm(path, { recursive: true, force: true });
 }

@@ -4,7 +4,7 @@ import {
   type GlobalConfig,
   DEFAULT_GLOBAL_CONFIG,
 } from "./schema";
-import { paths, ensureDirExists, fileExists } from "./paths";
+import { paths, ensureDirExists, fileExists, listDir, remove } from "./paths";
 
 // =============================================================================
 // CONFIG LOADER - Using Bun's native file APIs
@@ -60,32 +60,7 @@ export async function saveGlobalConfig(config: GlobalConfig): Promise<void> {
 
 /** List all project IDs */
 export async function listProjects(): Promise<string[]> {
-  const projectsDir = paths.projects;
-
-  // Check if directory exists using Bun.spawn
-  const checkProc = Bun.spawn(["test", "-d", projectsDir], {
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  const checkCode = await checkProc.exited;
-
-  if (checkCode !== 0) {
-    return [];
-  }
-
-  // Use Bun.spawn for ls
-  const proc = Bun.spawn(["ls", "-1", projectsDir], {
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-
-  const output = await new Response(proc.stdout).text();
-  await proc.exited;
-
-  return output
-    .trim()
-    .split("\n")
-    .filter((name) => name.length > 0);
+  return listDir(paths.projects);
 }
 
 /** Get all project configs */
@@ -105,8 +80,7 @@ export async function getAllProjects(): Promise<ProjectConfig[]> {
 
 /** Delete a project */
 export async function deleteProject(projectId: string): Promise<void> {
-  const projectDir = paths.project(projectId);
-  await Bun.spawn(["rm", "-rf", projectDir]).exited;
+  await remove(paths.project(projectId));
 }
 
 /** Check if project exists */

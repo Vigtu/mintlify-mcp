@@ -1,5 +1,5 @@
 import { loadProjectConfig } from "../config/loader";
-import { paths, ensureDirExists, fileExists } from "../config/paths";
+import { paths, ensureDirExists, fileExists, remove } from "../config/paths";
 import { isAgentOSRunning } from "../backends/agno";
 
 // =============================================================================
@@ -41,7 +41,7 @@ export async function startCommand(options: StartOptions): Promise<void> {
   const pidFile = paths.projectPid(project);
   if (await fileExists(pidFile)) {
     // Remove stale PID file
-    await Bun.spawn(["rm", "-f", pidFile]).exited;
+    await remove(pidFile);
   }
 
   // Find Python script path
