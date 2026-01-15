@@ -1,6 +1,6 @@
-import { loadProjectConfig } from "../config/loader";
-import { paths, ensureDirExists, fileExists, remove } from "../config/paths";
 import { isServerRunning } from "../backends/agno";
+import { loadProjectConfig } from "../config/loader";
+import { ensureDirExists, fileExists, paths, remove } from "../config/paths";
 
 // =============================================================================
 // START - Start RAG server for a project
@@ -16,7 +16,7 @@ export interface StartOptions {
 export async function startServer(
   project: string,
   port: number,
-  verbose: boolean = false
+  verbose: boolean = false,
 ): Promise<boolean> {
   // Check if already running
   if (await isServerRunning(port)) {
@@ -54,13 +54,23 @@ export async function startServer(
   };
 
   const proc = Bun.spawn(
-    ["uv", "run", "python", "-m", "server.main", "--project", project, "--port", String(port)],
+    [
+      "uv",
+      "run",
+      "python",
+      "-m",
+      "server.main",
+      "--project",
+      project,
+      "--port",
+      String(port),
+    ],
     {
       cwd: findPythonDir(),
       env,
       stdout: Bun.file(logFile),
       stderr: Bun.file(logFile),
-    }
+    },
   );
 
   // Save PID
@@ -77,7 +87,7 @@ export async function startServer(
 /** Wait for server to be ready (exported for use by setup/serve) */
 export async function waitForServer(
   port: number,
-  timeoutMs: number = 10000
+  timeoutMs: number = 10000,
 ): Promise<boolean> {
   const startTime = Date.now();
   const checkInterval = 500;

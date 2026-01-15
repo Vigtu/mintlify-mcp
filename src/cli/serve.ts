@@ -1,7 +1,7 @@
-import { loadProjectConfig } from "../config/loader";
-import { createMintlifyBackend } from "../backends/mintlify";
 import { createAgnoBackend, isServerRunning } from "../backends/agno";
+import { createMintlifyBackend } from "../backends/mintlify";
 import type { Backend } from "../backends/types";
+import { loadProjectConfig } from "../config/loader";
 import { startMcpServer } from "../server";
 import { startServer, waitForServer } from "./start";
 
@@ -35,7 +35,7 @@ export async function serveCommand(options: ServeOptions): Promise<void> {
 
     backend = createMintlifyBackend(
       config.mintlify.project_id,
-      config.mintlify.domain
+      config.mintlify.domain,
     );
   } else {
     // Use local RAG backend

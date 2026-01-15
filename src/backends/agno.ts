@@ -1,4 +1,4 @@
-import type { Backend, AskResult, AgnoBackendConfig } from "./types";
+import type { AgnoBackendConfig, AskResult, Backend } from "./types";
 
 // =============================================================================
 // LOCAL BACKEND - Calls local RAG server API
@@ -69,7 +69,7 @@ export class AgnoBackend implements Backend {
       if (error instanceof Error) {
         if (error.message.includes("ECONNREFUSED")) {
           throw new Error(
-            `Server not running. Run setup first or start manually.`
+            `Server not running. Run setup first or start manually.`,
           );
         }
         throw error;
@@ -119,7 +119,7 @@ export class AgnoBackend implements Backend {
 /** Create an Agno backend from config */
 export function createAgnoBackend(
   projectId: string,
-  port: number = 7777
+  port: number = 7777,
 ): AgnoBackend {
   return new AgnoBackend({ type: "agno", projectId, port });
 }

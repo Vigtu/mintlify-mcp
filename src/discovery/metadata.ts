@@ -14,7 +14,8 @@ export function extractTitle(content: string, fallbackPath: string): string {
     return match[1].trim();
   }
   // Fallback: convert path to title
-  const lastSegment = fallbackPath.split("/").filter(Boolean).pop() || "Untitled";
+  const lastSegment =
+    fallbackPath.split("/").filter(Boolean).pop() || "Untitled";
   return lastSegment
     .replace(/-/g, " ")
     .replace(/\b\w/g, (c) => c.toUpperCase());
@@ -52,7 +53,10 @@ export function extractDescription(content: string): string {
 }
 
 /** Extract both title and description from markdown */
-export function extractMetadata(content: string, fallbackPath: string): PageMetadata {
+export function extractMetadata(
+  content: string,
+  fallbackPath: string,
+): PageMetadata {
   return {
     title: extractTitle(content, fallbackPath),
     description: extractDescription(content),
@@ -62,7 +66,7 @@ export function extractMetadata(content: string, fallbackPath: string): PageMeta
 /** Fetch markdown and extract metadata */
 export async function fetchWithMetadata(
   url: string,
-  path: string
+  path: string,
 ): Promise<{ content: string; metadata: PageMetadata } | null> {
   try {
     const response = await fetch(url, {

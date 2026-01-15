@@ -68,7 +68,7 @@ export function createDefaultProjectConfig(
     mintlifyProjectId?: string;
     mintlifyDomain?: string;
     agnoPort?: number;
-  } = {}
+  } = {},
 ): ProjectConfig {
   const config: ProjectConfig = {
     id,

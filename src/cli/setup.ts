@@ -1,16 +1,12 @@
-import { join } from "node:path";
-import {
-  saveProjectConfig,
-  projectExists,
-} from "../config/loader";
+import { projectExists, saveProjectConfig } from "../config/loader";
+import { ensureDirExists, paths } from "../config/paths";
 import {
   createDefaultProjectConfig,
   type ProjectConfig,
 } from "../config/schema";
-import { paths, ensureDirExists } from "../config/paths";
 import { discoverPages, isMintlifySite } from "../discovery";
-import { startServer, waitForServer } from "./start";
 import { seedDocs } from "./seed";
+import { startServer, waitForServer } from "./start";
 
 // =============================================================================
 // SETUP COMMAND - One-command setup for local RAG assistant
@@ -26,14 +22,7 @@ export interface SetupOptions {
 }
 
 export async function setupCommand(options: SetupOptions): Promise<void> {
-  const {
-    url,
-    id,
-    name,
-    prefix,
-    port = 7777,
-    verbose = false,
-  } = options;
+  const { url, id, name, prefix, port = 7777, verbose = false } = options;
 
   console.log("\n🚀 Setting up documentation assistant...\n");
 
@@ -43,7 +32,9 @@ export async function setupCommand(options: SetupOptions): Promise<void> {
 
   // Validate project ID
   if (!/^[a-z0-9-]+$/.test(id)) {
-    console.error("❌ Project ID must contain only lowercase letters, numbers, and hyphens.");
+    console.error(
+      "❌ Project ID must contain only lowercase letters, numbers, and hyphens.",
+    );
     process.exit(1);
   }
 
@@ -58,7 +49,8 @@ export async function setupCommand(options: SetupOptions): Promise<void> {
   let normalizedUrl: string;
   try {
     const parsed = new URL(url);
-    normalizedUrl = `${parsed.protocol}//${parsed.host}${parsed.pathname}`.replace(/\/$/, "");
+    normalizedUrl =
+      `${parsed.protocol}//${parsed.host}${parsed.pathname}`.replace(/\/$/, "");
   } catch {
     console.error(`❌ Invalid URL: ${url}`);
     process.exit(1);
@@ -83,13 +75,19 @@ export async function setupCommand(options: SetupOptions): Promise<void> {
 
   if (discovery.pages.length === 0) {
     console.error("\n❌ No pages found.");
-    console.error("   Make sure the URL is correct and the site is accessible.");
+    console.error(
+      "   Make sure the URL is correct and the site is accessible.",
+    );
     process.exit(1);
   }
 
-  console.log(`   Found ${discovery.pages.length} pages via ${discovery.method}`);
+  console.log(
+    `   Found ${discovery.pages.length} pages via ${discovery.method}`,
+  );
   if (discovery.total !== discovery.filtered) {
-    console.log(`   (${discovery.total} total, ${discovery.filtered} after prefix filter)`);
+    console.log(
+      `   (${discovery.total} total, ${discovery.filtered} after prefix filter)`,
+    );
   }
 
   // ==========================================================================
@@ -125,8 +123,8 @@ export async function setupCommand(options: SetupOptions): Promise<void> {
     process.exit(1);
   }
 
-  // Wait for server to be ready
-  const ready = await waitForServer(port, 10000);
+  // Wait for server to be ready (30s timeout for dependency loading)
+  const ready = await waitForServer(port, 30000);
   if (!ready) {
     console.error("\n❌ RAG server did not become ready in time.");
     process.exit(1);
@@ -138,7 +136,9 @@ export async function setupCommand(options: SetupOptions): Promise<void> {
   // STEP 5: Seed documentation
   // ==========================================================================
 
-  console.log(`\n📚 Seeding ${discovery.pages.length} pages to knowledge base...`);
+  console.log(
+    `\n📚 Seeding ${discovery.pages.length} pages to knowledge base...`,
+  );
 
   const seedResult = await seedDocs(id, discovery.pages, port, verbose);
 
@@ -153,12 +153,14 @@ export async function setupCommand(options: SetupOptions): Promise<void> {
 
   const cliName = "mintlify-mcp"; // TODO: will be renamed
 
-  console.log("\n" + "=".repeat(60));
+  console.log(`\n${"=".repeat(60)}`);
   console.log("✅ Setup complete!");
   console.log("=".repeat(60));
 
   console.log("\n📋 Add to Claude Code:\n");
-  console.log(`   claude mcp add ${id} -- bunx ${cliName} serve --project ${id}`);
+  console.log(
+    `   claude mcp add ${id} -- bunx ${cliName} serve --project ${id}`,
+  );
 
   console.log("\n💡 Or add manually to your MCP settings:\n");
   console.log(`   {
@@ -170,7 +172,9 @@ export async function setupCommand(options: SetupOptions): Promise<void> {
      }
    }`);
 
-  console.log("\n🎉 Done! Restart Claude Code to use your documentation assistant.\n");
+  console.log(
+    "\n🎉 Done! Restart Claude Code to use your documentation assistant.\n",
+  );
 }
 
 // =============================================================================

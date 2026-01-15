@@ -1,6 +1,13 @@
-import { parseSitemap, filterByPrefix, type DiscoveredPage } from "./sitemap";
 import { parseMintJson } from "./mintjson";
-export { extractTitle, extractDescription, extractMetadata, fetchWithMetadata, type PageMetadata } from "./metadata";
+import { type DiscoveredPage, filterByPrefix, parseSitemap } from "./sitemap";
+
+export {
+  extractDescription,
+  extractMetadata,
+  extractTitle,
+  fetchWithMetadata,
+  type PageMetadata,
+} from "./metadata";
 
 // =============================================================================
 // DISCOVERY ENGINE - Orchestrates page discovery
@@ -26,7 +33,7 @@ export interface DiscoveryResult {
 /** Discover pages from a documentation site */
 export async function discoverPages(
   baseUrl: string,
-  options: DiscoveryOptions = {}
+  options: DiscoveryOptions = {},
 ): Promise<DiscoveryResult> {
   const { method = "auto", prefix, verbose = false } = options;
   const normalizedUrl = baseUrl.replace(/\/$/, "");
@@ -60,7 +67,9 @@ export async function discoverPages(
   if (prefix && pages.length > 0) {
     pages = filterByPrefix(pages, prefix);
     if (verbose) {
-      console.error(`Filtered to ${pages.length} pages with prefix "${prefix}"`);
+      console.error(
+        `Filtered to ${pages.length} pages with prefix "${prefix}"`,
+      );
     }
   }
 

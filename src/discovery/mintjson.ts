@@ -17,7 +17,9 @@ interface MintConfig {
 }
 
 /** Parse mint.json from a URL */
-export async function parseMintJson(baseUrl: string): Promise<DiscoveredPage[]> {
+export async function parseMintJson(
+  baseUrl: string,
+): Promise<DiscoveredPage[]> {
   const mintUrl = `${baseUrl.replace(/\/$/, "")}/mint.json`;
 
   try {
@@ -53,7 +55,7 @@ export async function parseMintJson(baseUrl: string): Promise<DiscoveredPage[]> 
 function extractPagesFromNav(
   items: (string | MintNavItem)[],
   pages: DiscoveredPage[],
-  baseUrl: string
+  baseUrl: string,
 ): void {
   for (const item of items) {
     if (typeof item === "string") {
@@ -79,7 +81,7 @@ function extractPagesFromNav(
 
 /** Try to fetch and parse mint.json, return null if not available */
 export async function tryParseMintJson(
-  baseUrl: string
+  baseUrl: string,
 ): Promise<DiscoveredPage[] | null> {
   try {
     const pages = await parseMintJson(baseUrl);

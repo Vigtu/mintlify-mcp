@@ -1,4 +1,4 @@
-import type { Backend, AskResult, MintlifyBackendConfig } from "./types";
+import type { AskResult, Backend, MintlifyBackendConfig } from "./types";
 
 // =============================================================================
 // MINTLIFY BACKEND - Calls Mintlify AI Assistant API
@@ -69,12 +69,12 @@ export class MintlifyBackend implements Backend {
           Referer: `https://${this.domain}/`,
         },
         body: JSON.stringify(requestBody),
-      }
+      },
     );
 
     if (!response.ok) {
       throw new Error(
-        `Mintlify API error: ${response.status} ${response.statusText}`
+        `Mintlify API error: ${response.status} ${response.statusText}`,
       );
     }
 
@@ -111,7 +111,7 @@ export class MintlifyBackend implements Backend {
         {
           method: "OPTIONS",
           headers: { Origin: `https://${this.domain}` },
-        }
+        },
       );
       return response.ok || response.status === 405;
     } catch {
@@ -121,7 +121,7 @@ export class MintlifyBackend implements Backend {
 
   private parseStreamedResponse(
     rawResponse: string,
-    baseUrl: string
+    baseUrl: string,
   ): { answer: string; messageId?: string } {
     const lines = rawResponse.split("\n");
     const textChunks: string[] = [];
@@ -176,7 +176,7 @@ export class MintlifyBackend implements Backend {
 /** Create a Mintlify backend from config */
 export function createMintlifyBackend(
   projectId: string,
-  domain: string
+  domain: string,
 ): MintlifyBackend {
   return new MintlifyBackend({ type: "mintlify", projectId, domain });
 }

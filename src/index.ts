@@ -1,17 +1,15 @@
 #!/usr/bin/env bun
 
-import { setupCommand } from "./cli/setup";
-import { serveCommand } from "./cli/serve";
-import { listCommand } from "./cli/list";
-import { stopCommand, stopAllCommand } from "./cli/stop";
-
-// Legacy commands (kept for backward compatibility)
-import { createCommand } from "./cli/create";
-import { seedCommand } from "./cli/seed";
-import { startCommand } from "./cli/start";
-
 // Mintlify API mode imports
 import { createMintlifyBackend } from "./backends/mintlify";
+// Legacy commands (kept for backward compatibility)
+import { createCommand } from "./cli/create";
+import { listCommand } from "./cli/list";
+import { seedCommand } from "./cli/seed";
+import { serveCommand } from "./cli/serve";
+import { setupCommand } from "./cli/setup";
+import { startCommand } from "./cli/start";
+import { stopAllCommand, stopCommand } from "./cli/stop";
 import { startMcpServer } from "./server";
 
 // =============================================================================
@@ -115,11 +113,15 @@ function parseArgs(args: string[]): ParsedArgs {
       const next = args[i + 1];
       // Map short flags to long flags
       const longKey =
-        key === "p" ? "project" :
-        key === "n" ? "name" :
-        key === "u" ? "url" :
-        key === "i" ? "id" :
-        key;
+        key === "p"
+          ? "project"
+          : key === "n"
+            ? "name"
+            : key === "u"
+              ? "url"
+              : key === "i"
+                ? "id"
+                : key;
 
       if (next && !next.startsWith("-")) {
         result.flags[longKey] = next;
@@ -165,7 +167,9 @@ async function main(): Promise<void> {
     case "setup":
       if (!parsed.flags.url || !parsed.flags.id) {
         console.error("Error: --url and --id are required for setup command");
-        console.error(`Usage: ${CLI_NAME} setup --url <docs-url> --id <project-id>`);
+        console.error(
+          `Usage: ${CLI_NAME} setup --url <docs-url> --id <project-id>`,
+        );
         process.exit(1);
       }
       await setupCommand({
@@ -173,7 +177,9 @@ async function main(): Promise<void> {
         id: parsed.flags.id as string,
         name: parsed.flags.name as string | undefined,
         prefix: parsed.flags.prefix as string | undefined,
-        port: parsed.flags.port ? parseInt(parsed.flags.port as string) : undefined,
+        port: parsed.flags.port
+          ? parseInt(parsed.flags.port as string, 10)
+          : undefined,
         verbose: Boolean(parsed.flags.verbose),
       });
       break;
@@ -222,7 +228,9 @@ async function main(): Promise<void> {
         prefix: parsed.flags.prefix as string | undefined,
         backend: (parsed.flags.backend as "agno" | "mintlify") || "agno",
         download: Boolean(parsed.flags.download),
-        parallel: parsed.flags.parallel ? parseInt(parsed.flags.parallel as string) : undefined,
+        parallel: parsed.flags.parallel
+          ? parseInt(parsed.flags.parallel as string, 10)
+          : undefined,
         verbose: Boolean(parsed.flags.verbose),
       });
       break;
@@ -246,7 +254,9 @@ async function main(): Promise<void> {
       }
       await startCommand({
         project: parsed.flags.project as string,
-        port: parsed.flags.port ? parseInt(parsed.flags.port as string) : undefined,
+        port: parsed.flags.port
+          ? parseInt(parsed.flags.port as string, 10)
+          : undefined,
         verbose: Boolean(parsed.flags.verbose),
       });
       break;

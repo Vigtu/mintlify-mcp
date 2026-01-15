@@ -1,4 +1,4 @@
-import { mkdir, readdir, stat, rm } from "node:fs/promises";
+import { mkdir, readdir, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
 
 // =============================================================================

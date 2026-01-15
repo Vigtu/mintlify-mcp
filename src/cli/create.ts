@@ -1,14 +1,17 @@
-import { join, dirname } from "node:path";
-import {
-  saveProjectConfig,
-  projectExists,
-} from "../config/loader";
+import { dirname, join } from "node:path";
+import { projectExists, saveProjectConfig } from "../config/loader";
+import { ensureDirExists, paths } from "../config/paths";
 import {
   createDefaultProjectConfig,
   type ProjectConfig,
 } from "../config/schema";
-import { paths, ensureDirExists } from "../config/paths";
-import { discoverPages, isMintlifySite, getMarkdownUrl, extractMetadata, type DiscoveredPage } from "../discovery";
+import {
+  type DiscoveredPage,
+  discoverPages,
+  extractMetadata,
+  getMarkdownUrl,
+  isMintlifySite,
+} from "../discovery";
 
 // =============================================================================
 // CREATE COMMAND - Create a new project
@@ -21,7 +24,6 @@ export interface CreateOptions {
   prefix?: string;
   backend?: "agno" | "mintlify";
   mintlifyProjectId?: string;
-  skipSeed?: boolean;
   download?: boolean;
   parallel?: number;
   verbose?: boolean;
@@ -35,7 +37,6 @@ export async function createCommand(options: CreateOptions): Promise<void> {
     prefix,
     backend = "agno",
     mintlifyProjectId,
-    skipSeed = false,
     download = false,
     parallel = 3,
     verbose = false,
@@ -43,7 +44,9 @@ export async function createCommand(options: CreateOptions): Promise<void> {
 
   // Validate project ID
   if (!/^[a-z0-9-]+$/.test(id)) {
-    console.error("Project ID must contain only lowercase letters, numbers, and hyphens.");
+    console.error(
+      "Project ID must contain only lowercase letters, numbers, and hyphens.",
+    );
     process.exit(1);
   }
 
@@ -58,7 +61,8 @@ export async function createCommand(options: CreateOptions): Promise<void> {
   let normalizedUrl: string;
   try {
     const parsed = new URL(url);
-    normalizedUrl = `${parsed.protocol}//${parsed.host}${parsed.pathname}`.replace(/\/$/, "");
+    normalizedUrl =
+      `${parsed.protocol}//${parsed.host}${parsed.pathname}`.replace(/\/$/, "");
   } catch {
     console.error(`Invalid URL: ${url}`);
     process.exit(1);
@@ -99,7 +103,9 @@ export async function createCommand(options: CreateOptions): Promise<void> {
 
   console.log(`Found ${discovery.pages.length} pages via ${discovery.method}`);
   if (discovery.total !== discovery.filtered) {
-    console.log(`  (${discovery.total} total, ${discovery.filtered} after prefix filter)`);
+    console.log(
+      `  (${discovery.total} total, ${discovery.filtered} after prefix filter)`,
+    );
   }
 
   // Create project config
@@ -152,10 +158,14 @@ export async function createCommand(options: CreateOptions): Promise<void> {
     console.log(`     mintlify-mcp serve --project ${id}`);
     console.log();
     console.log(`  Or configure Claude Code:`);
-    console.log(`     claude mcp add ${id} -- bunx mintlify-mcp serve --project ${id}`);
+    console.log(
+      `     claude mcp add ${id} -- bunx mintlify-mcp serve --project ${id}`,
+    );
   } else {
     console.log(`  Configure Claude Code:`);
-    console.log(`     claude mcp add ${id} -- bunx mintlify-mcp serve --project ${id}`);
+    console.log(
+      `     claude mcp add ${id} -- bunx mintlify-mcp serve --project ${id}`,
+    );
   }
 }
 
@@ -203,7 +213,7 @@ interface DownloadResult {
 async function downloadPages(
   pages: DiscoveredPage[],
   outputDir: string,
-  options: DownloadOptions
+  options: DownloadOptions,
 ): Promise<DownloadResult> {
   const { parallel, verbose } = options;
   let success = 0;
@@ -216,11 +226,11 @@ async function downloadPages(
 
     // Progress indicator
     process.stdout.write(
-      `\rDownloading: ${Math.min(i + parallel, pages.length)}/${pages.length} pages...`
+      `\rDownloading: ${Math.min(i + parallel, pages.length)}/${pages.length} pages...`,
     );
 
     const results = await Promise.all(
-      batch.map((page) => downloadPage(page, outputDir, verbose))
+      batch.map((page) => downloadPage(page, outputDir, verbose)),
     );
 
     for (const result of results) {
@@ -246,7 +256,7 @@ async function downloadPages(
 async function downloadPage(
   page: DiscoveredPage,
   outputDir: string,
-  verbose: boolean
+  verbose: boolean,
 ): Promise<PageMetadata | null> {
   const mdUrl = getMarkdownUrl(page);
   const localPath = getLocalPath(page, outputDir);

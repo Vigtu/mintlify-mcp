@@ -12,7 +12,7 @@ import type { Backend } from "./backends/types";
 
 export async function startMcpServer(
   backend: Backend,
-  projectName: string
+  projectName: string,
 ): Promise<void> {
   const serverName = `${projectName} AI Assistant`;
 
@@ -25,7 +25,7 @@ export async function startMcpServer(
       capabilities: {
         tools: {},
       },
-    }
+    },
   );
 
   // List available tools

@@ -1,5 +1,5 @@
-import { loadProjectConfig, listProjects } from "../config/loader";
-import { paths, fileExists, remove } from "../config/paths";
+import { listProjects, loadProjectConfig } from "../config/loader";
+import { fileExists, paths, remove } from "../config/paths";
 
 // =============================================================================
 // STOP COMMAND - Stop server for a project
@@ -31,7 +31,7 @@ export async function stopCommand(options: StopOptions): Promise<void> {
   const pidContent = await Bun.file(pidFile).text();
   const pid = parseInt(pidContent.trim(), 10);
 
-  if (isNaN(pid)) {
+  if (Number.isNaN(pid)) {
     console.error("Invalid PID file. Removing...");
     await remove(pidFile);
     return;
@@ -72,7 +72,7 @@ export async function stopAllCommand(): Promise<void> {
     const pidContent = await Bun.file(pidFile).text();
     const pid = parseInt(pidContent.trim(), 10);
 
-    if (!isNaN(pid)) {
+    if (!Number.isNaN(pid)) {
       console.log(`Stopping ${projectId} (PID: ${pid})...`);
       try {
         process.kill(pid, "SIGTERM");

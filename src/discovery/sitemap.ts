@@ -74,7 +74,7 @@ export async function parseSitemap(baseUrl: string): Promise<DiscoveredPage[]> {
 /** Filter pages by path prefix */
 export function filterByPrefix(
   pages: DiscoveredPage[],
-  prefix: string
+  prefix: string,
 ): DiscoveredPage[] {
   const normalizedPrefix = prefix.startsWith("/") ? prefix : `/${prefix}`;
   return pages.filter((page) => page.path.startsWith(normalizedPrefix));

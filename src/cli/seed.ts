@@ -1,6 +1,11 @@
-import { loadProjectConfig, updateSeedingStatus } from "../config/loader";
-import { discoverPages, getMarkdownUrl, fetchWithMetadata, type DiscoveredPage } from "../discovery";
 import { isServerRunning } from "../backends/agno";
+import { loadProjectConfig, updateSeedingStatus } from "../config/loader";
+import {
+  type DiscoveredPage,
+  discoverPages,
+  fetchWithMetadata,
+  getMarkdownUrl,
+} from "../discovery";
 
 // =============================================================================
 // SEED - Seed documentation into knowledge base
@@ -19,12 +24,11 @@ export interface SeedResult {
 
 /** Seed docs to knowledge base (exported for use by setup command) */
 export async function seedDocs(
-  project: string,
+  _project: string,
   pages: DiscoveredPage[],
   port: number,
-  verbose: boolean = false
+  verbose: boolean = false,
 ): Promise<SeedResult> {
-  const knowledgeName = `${project}-docs`;
   const baseUrl = `http://localhost:${port}`;
   let successCount = 0;
   let errorCount = 0;
@@ -53,19 +57,14 @@ export async function seedDocs(
 
       const { content, metadata } = result;
 
-      // Send to knowledge base via POST /knowledge/content
-      // Requires db_id query param to identify the knowledge base
-      // Payload schema:
-      // {
-      //   "name": "project-docs",
-      //   "text_content": "# Full markdown content...",
-      //   "metadata": "{\"path\": \"/api/auth\", \"title\": \"...\", ...}"  // JSON string
-      // }
-      const response = await fetch(`${baseUrl}/knowledge/content?db_id=${knowledgeName}`, {
+      // Send to knowledge base via custom /seed endpoint
+      // Uses knowledge.add_content_async() directly (bypasses AgentOS REST API)
+      const docName = `${page.path.replace(/^\//, "").replace(/\//g, "-") || "index"}`;
+      const response = await fetch(`${baseUrl}/seed`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: knowledgeName,
+          name: docName,
           text_content: content,
           metadata: JSON.stringify({
             path: page.path,
@@ -106,7 +105,7 @@ export async function seedDocs(
 
 /** CLI command handler */
 export async function seedCommand(options: SeedOptions): Promise<void> {
-  const { project, force = false, verbose = false } = options;
+  const { project, force: _force = false, verbose = false } = options;
 
   // Load project config
   const config = await loadProjectConfig(project);

@@ -1,10 +1,10 @@
 import YAML from "yaml";
+import { ensureDirExists, fileExists, listDir, paths, remove } from "./paths";
 import {
-  type ProjectConfig,
-  type GlobalConfig,
   DEFAULT_GLOBAL_CONFIG,
+  type GlobalConfig,
+  type ProjectConfig,
 } from "./schema";
-import { paths, ensureDirExists, fileExists, listDir, remove } from "./paths";
 
 // =============================================================================
 // CONFIG LOADER - Using Bun's native file APIs
@@ -12,7 +12,7 @@ import { paths, ensureDirExists, fileExists, listDir, remove } from "./paths";
 
 /** Load project config from YAML */
 export async function loadProjectConfig(
-  projectId: string
+  projectId: string,
 ): Promise<ProjectConfig | null> {
   const configPath = paths.projectConfig(projectId);
 
@@ -91,7 +91,7 @@ export async function projectExists(projectId: string): Promise<boolean> {
 /** Update project config partially */
 export async function updateProjectConfig(
   projectId: string,
-  updates: Partial<ProjectConfig>
+  updates: Partial<ProjectConfig>,
 ): Promise<ProjectConfig | null> {
   const config = await loadProjectConfig(projectId);
   if (!config) return null;
@@ -104,7 +104,7 @@ export async function updateProjectConfig(
 /** Update seeding status */
 export async function updateSeedingStatus(
   projectId: string,
-  status: ProjectConfig["seeding"]
+  status: ProjectConfig["seeding"],
 ): Promise<void> {
   const config = await loadProjectConfig(projectId);
   if (!config) return;
