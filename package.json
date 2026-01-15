@@ -16,7 +16,8 @@
     "start": "bun src/index.ts",
     "dev": "bun --watch src/index.ts",
     "test": "bun test",
-    "typecheck": "bunx tsc --noEmit"
+    "typecheck": "bunx tsc --noEmit",
+    "lint": "biome check --write --unsafe src"
   },
   "keywords": [
     "mcp",
@@ -45,6 +46,7 @@
     "yaml": "^2.8.2"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.3.11",
     "@types/bun": "latest",
     "typescript": "^5.3.0"
   }
