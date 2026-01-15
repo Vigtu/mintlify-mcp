@@ -183,9 +183,20 @@ interface DownloadOptions {
   verbose: boolean;
 }
 
+interface PageMetadata {
+  path: string;
+  url: string;
+  title: string;
+  description: string;
+  localPath: string;
+  lastmod?: string;
+  charCount: number;
+}
+
 interface DownloadResult {
   success: number;
   errors: number;
+  metadata: PageMetadata[];
 }
 
 /** Download all pages to local directory */
@@ -197,6 +208,7 @@ async function downloadPages(
   const { parallel, verbose } = options;
   let success = 0;
   let errors = 0;
+  const metadata: PageMetadata[] = [];
 
   // Process in batches
   for (let i = 0; i < pages.length; i += parallel) {
@@ -211,22 +223,31 @@ async function downloadPages(
       batch.map((page) => downloadPage(page, outputDir, verbose))
     );
 
-    for (const ok of results) {
-      if (ok) success++;
-      else errors++;
+    for (const result of results) {
+      if (result) {
+        success++;
+        metadata.push(result);
+      } else {
+        errors++;
+      }
     }
   }
 
   console.log(); // New line after progress
-  return { success, errors };
+
+  // Save metadata index
+  const indexPath = join(outputDir, "_index.json");
+  await Bun.write(indexPath, JSON.stringify(metadata, null, 2));
+
+  return { success, errors, metadata };
 }
 
-/** Download a single page's markdown */
+/** Download a single page's markdown and extract metadata */
 async function downloadPage(
   page: DiscoveredPage,
   outputDir: string,
   verbose: boolean
-): Promise<boolean> {
+): Promise<PageMetadata | null> {
   const mdUrl = getMarkdownUrl(page);
   const localPath = getLocalPath(page, outputDir);
 
@@ -242,10 +263,14 @@ async function downloadPage(
       if (verbose) {
         console.error(`\n  Error ${response.status}: ${page.path}`);
       }
-      return false;
+      return null;
     }
 
     const content = await response.text();
+
+    // Extract metadata from markdown
+    const title = extractTitle(content, page.path);
+    const description = extractDescription(content);
 
     // Ensure parent directory exists
     await ensureDirExists(dirname(localPath));
@@ -254,16 +279,68 @@ async function downloadPage(
     await Bun.write(localPath, content);
 
     if (verbose) {
-      console.log(`\n  Downloaded: ${page.path}`);
+      console.log(`\n  Downloaded: ${page.path} (${title})`);
     }
 
-    return true;
+    return {
+      path: page.path,
+      url: page.url,
+      title,
+      description,
+      localPath: localPath.replace(outputDir, "").replace(/^\//, ""),
+      lastmod: page.lastmod,
+      charCount: content.length,
+    };
   } catch (error) {
     if (verbose) {
       console.error(`\n  Error: ${page.path} - ${error}`);
     }
-    return false;
+    return null;
   }
+}
+
+/** Extract title from markdown (first H1 heading) */
+function extractTitle(content: string, fallbackPath: string): string {
+  const match = content.match(/^#\s+(.+)$/m);
+  if (match) {
+    return match[1].trim();
+  }
+  // Fallback: convert path to title
+  const lastSegment = fallbackPath.split("/").filter(Boolean).pop() || "Untitled";
+  return lastSegment
+    .replace(/-/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/** Extract description from markdown (first blockquote or paragraph) */
+function extractDescription(content: string): string {
+  // Try blockquote first (common in Mintlify docs)
+  const blockquoteMatch = content.match(/^>\s*(.+)$/m);
+  if (blockquoteMatch) {
+    return blockquoteMatch[1].trim();
+  }
+
+  // Try first paragraph (skip headings, code blocks, empty lines)
+  const lines = content.split("\n");
+  for (const line of lines) {
+    const trimmed = line.trim();
+    // Skip empty lines, headings, code blocks, HTML tags
+    if (
+      !trimmed ||
+      trimmed.startsWith("#") ||
+      trimmed.startsWith("```") ||
+      trimmed.startsWith("<") ||
+      trimmed.startsWith("|") ||
+      trimmed.startsWith("-") ||
+      trimmed.startsWith("*")
+    ) {
+      continue;
+    }
+    // Found a paragraph
+    return trimmed.slice(0, 200); // Limit to 200 chars
+  }
+
+  return "";
 }
 
 /** Convert page path to local file path */
