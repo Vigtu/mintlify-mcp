@@ -142,7 +142,7 @@ export async function createCommand(options: CreateOptions): Promise<void> {
   console.log("\nNext steps:");
 
   if (backend === "agno") {
-    console.log(`  1. Start AgentOS:`);
+    console.log(`  1. Start server:`);
     console.log(`     mintlify-mcp start --project ${id}`);
     console.log();
     console.log(`  2. Seed documentation:`);

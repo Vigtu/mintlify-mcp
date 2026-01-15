@@ -1,9 +1,9 @@
 import { loadProjectConfig } from "../config/loader";
 import { paths, ensureDirExists, fileExists, remove } from "../config/paths";
-import { isAgentOSRunning } from "../backends/agno";
+import { isServerRunning } from "../backends/agno";
 
 // =============================================================================
-// START COMMAND - Start AgentOS server for a project
+// START - Start RAG server for a project
 // =============================================================================
 
 export interface StartOptions {
@@ -12,58 +12,45 @@ export interface StartOptions {
   verbose?: boolean;
 }
 
-export async function startCommand(options: StartOptions): Promise<void> {
-  const { project, verbose = false } = options;
-
-  // Load project config
-  const config = await loadProjectConfig(project);
-  if (!config) {
-    console.error(`Project "${project}" not found.`);
-    console.error("Run 'mintlify-mcp list' to see available projects.");
-    process.exit(1);
-  }
-
-  if (config.backend !== "agno") {
-    console.error(`Project "${project}" uses Mintlify backend, not Agno.`);
-    console.error("AgentOS is only needed for Agno-based projects.");
-    process.exit(1);
-  }
-
-  const port = options.port || config.agno?.port || 7777;
-
+/** Start server (exported for use by setup command) */
+export async function startServer(
+  project: string,
+  port: number,
+  verbose: boolean = false
+): Promise<boolean> {
   // Check if already running
-  if (await isAgentOSRunning(port)) {
-    console.log(`AgentOS is already running on port ${port}`);
-    return;
+  if (await isServerRunning(port)) {
+    if (verbose) {
+      console.log(`   Server already running on port ${port}`);
+    }
+    return true;
   }
 
   // Check if PID file exists (stale)
   const pidFile = paths.projectPid(project);
   if (await fileExists(pidFile)) {
-    // Remove stale PID file
     await remove(pidFile);
   }
 
   // Find Python script path
   const pythonScript = await findPythonScript();
   if (!pythonScript) {
-    console.error("Python AgentOS script not found.");
-    console.error("Make sure python/server/main.py exists.");
-    process.exit(1);
+    if (verbose) {
+      console.error("   Python server script not found.");
+    }
+    return false;
   }
-
-  console.log(`Starting AgentOS for project "${project}" on port ${port}...`);
 
   // Ensure logs directory exists
   await ensureDirExists(paths.projectLogs(project));
 
-  // Start AgentOS in background using Bun.spawn
-  const logFile = `${paths.projectLogs(project)}/agent.log`;
+  // Start server in background
+  const logFile = `${paths.projectLogs(project)}/server.log`;
   const env = {
     ...process.env,
-    MINTLIFY_DATA_DIR: paths.root,
-    MINTLIFY_PROJECT_ID: project,
-    MINTLIFY_PORT: String(port),
+    AGNO_DATA_DIR: paths.root,
+    AGNO_PROJECT_ID: project,
+    AGNO_PORT: String(port),
   };
 
   const proc = Bun.spawn(
@@ -80,27 +67,83 @@ export async function startCommand(options: StartOptions): Promise<void> {
   await Bun.write(pidFile, String(proc.pid));
 
   if (verbose) {
-    console.log(`PID: ${proc.pid}`);
-    console.log(`Log: ${logFile}`);
+    console.log(`   PID: ${proc.pid}`);
+    console.log(`   Log: ${logFile}`);
   }
 
-  // Wait a bit and check if it started
-  await Bun.sleep(2000);
+  return true;
+}
 
-  if (await isAgentOSRunning(port)) {
-    console.log(`AgentOS started successfully on http://localhost:${port}`);
-    console.log(`\nTo use with Claude Code:`);
-    console.log(`  mintlify-mcp serve --project ${project}`);
+/** Wait for server to be ready (exported for use by setup/serve) */
+export async function waitForServer(
+  port: number,
+  timeoutMs: number = 10000
+): Promise<boolean> {
+  const startTime = Date.now();
+  const checkInterval = 500;
+
+  while (Date.now() - startTime < timeoutMs) {
+    if (await isServerRunning(port)) {
+      return true;
+    }
+    await Bun.sleep(checkInterval);
+  }
+
+  return false;
+}
+
+/** CLI command handler */
+export async function startCommand(options: StartOptions): Promise<void> {
+  const { project, verbose = false } = options;
+
+  // Load project config
+  const config = await loadProjectConfig(project);
+  if (!config) {
+    console.error(`Project "${project}" not found.`);
+    console.error("Run 'list' command to see available projects.");
+    process.exit(1);
+  }
+
+  if (config.backend !== "agno") {
+    console.error(`Project "${project}" uses remote API backend.`);
+    console.error("Local server is only needed for local RAG projects.");
+    process.exit(1);
+  }
+
+  const port = options.port || config.agno?.port || 7777;
+
+  // Check if already running
+  if (await isServerRunning(port)) {
+    console.log(`Server already running on port ${port}`);
+    return;
+  }
+
+  console.log(`Starting server for "${project}" on port ${port}...`);
+
+  const started = await startServer(project, port, verbose);
+  if (!started) {
+    console.error("Failed to start server.");
+    process.exit(1);
+  }
+
+  // Wait for server to be ready
+  const ready = await waitForServer(port, 10000);
+  if (ready) {
+    console.log(`Server started successfully on http://localhost:${port}`);
   } else {
-    console.error("AgentOS failed to start. Check logs:");
+    const logFile = `${paths.projectLogs(project)}/server.log`;
+    console.error("Server failed to start. Check logs:");
     console.error(`  cat ${logFile}`);
     process.exit(1);
   }
 }
 
+// =============================================================================
+// HELPERS
+// =============================================================================
+
 /** Find the Python directory */
 function findPythonDir(): string {
-  // Look relative to this file's location
   const possiblePaths = [
     `${import.meta.dir}/../../python`,
     `${process.cwd()}/python`,
@@ -108,7 +151,6 @@ function findPythonDir(): string {
   ];
 
   for (const p of possiblePaths) {
-    // We'll just return the first one, actual check happens in startCommand
     return p;
   }
 

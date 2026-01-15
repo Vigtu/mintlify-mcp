@@ -1,18 +1,21 @@
 #!/usr/bin/env bun
 
-import { createCommand } from "./cli/create";
+import { setupCommand } from "./cli/setup";
 import { serveCommand } from "./cli/serve";
+import { listCommand } from "./cli/list";
+import { stopCommand, stopAllCommand } from "./cli/stop";
+
+// Legacy commands (kept for backward compatibility)
+import { createCommand } from "./cli/create";
 import { seedCommand } from "./cli/seed";
 import { startCommand } from "./cli/start";
-import { stopCommand, stopAllCommand } from "./cli/stop";
-import { listCommand } from "./cli/list";
 
 // Mintlify API mode imports
 import { createMintlifyBackend } from "./backends/mintlify";
 import { startMcpServer } from "./server";
 
 // =============================================================================
-// KNOWN DOCUMENTATION SITES (Mintlify API mode)
+// KNOWN DOCUMENTATION SITES (Mintlify API mode - for sites with AI Assistant)
 // =============================================================================
 
 const KNOWN_DOCS: Record<string, { name: string; domain: string }> = {
@@ -25,65 +28,56 @@ const KNOWN_DOCS: Record<string, { name: string; domain: string }> = {
 };
 
 // =============================================================================
-// CLI ARGUMENT PARSING
+// CLI
 // =============================================================================
+
+const CLI_NAME = "mintlify-mcp"; // TODO: will be renamed
 
 function showHelp(): void {
   console.log(`
-mintlify-mcp - Query any Mintlify-powered documentation from Claude Code
+${CLI_NAME} - AI documentation assistant for Claude Code
+
+QUICK START:
+  ${CLI_NAME} setup --url <docs-url> --id <project-id>
+
+  This will:
+  1. Discover all documentation pages
+  2. Start local RAG server
+  3. Seed knowledge base
+  4. Show Claude Code configuration
 
 COMMANDS:
-  create    Create a new documentation project
+  setup     Set up a new documentation assistant (recommended)
   serve     Start MCP server for Claude Code
-  seed      Seed documentation into knowledge base
-  start     Start AgentOS server (for Agno backend)
-  stop      Stop AgentOS server
-  list      List all projects
+  list      List all configured projects
+  stop      Stop background RAG server
 
-USAGE:
-  mintlify-mcp create --url <docs-url> --id <project-id> [options]
-  mintlify-mcp serve --project <id>
-  mintlify-mcp seed --project <id>
-  mintlify-mcp start --project <id>
-  mintlify-mcp stop --project <id>
-  mintlify-mcp list
-
-CREATE OPTIONS:
-  --url <url>           Documentation site URL (required)
-  --id <id>             Project ID (required)
-  --name <name>         Display name (optional)
-  --prefix <path>       Only include pages under this path (optional)
-  --backend <type>      Backend type: agno or mintlify (default: agno)
-  --download            Download all markdown files locally
-  --parallel <n>        Concurrent downloads (default: 3)
-
-SERVE OPTIONS:
-  --project <id>        Project ID (required)
-
-MINTLIFY API (for sites with AI Assistant feature):
-  mintlify-mcp -p <mintlify-project-id>
-  mintlify-mcp -p <mintlify-project-id> -n <name>
-
-KNOWN MINTLIFY PROJECT IDs:
-${Object.entries(KNOWN_DOCS)
-  .map(([id, info]) => `  ${id.padEnd(12)} ${info.name}`)
-  .join("\n")}
+SETUP OPTIONS:
+  --url <url>       Documentation site URL (required)
+  --id <id>         Project ID (required)
+  --name <name>     Display name (optional)
+  --prefix <path>   Only include pages under this path (optional)
+  --port <port>     RAG server port (default: 7777)
 
 EXAMPLES:
-  # Mintlify API: Use site's built-in AI Assistant
-  mintlify-mcp -p agno-v2
-  mintlify-mcp -p resend -n "Resend Docs"
+  # Set up assistant for any documentation site
+  ${CLI_NAME} setup --url https://docs.example.com --id my-docs
 
-  # Local Agent: Create your own AI Assistant (works with ANY Mintlify site)
-  mintlify-mcp create --url https://docs.example.com --id my-docs
-  mintlify-mcp create --url https://docs.example.com --id my-docs --prefix /guides
-  mintlify-mcp create --url https://docs.example.com --id my-docs --download
-  mintlify-mcp start --project my-docs
-  mintlify-mcp seed --project my-docs
-  mintlify-mcp serve --project my-docs
+  # Only include specific section
+  ${CLI_NAME} setup --url https://docs.example.com --id my-docs --prefix /guides
 
-CLAUDE CODE CONFIGURATION:
-  claude mcp add my-docs -- bunx mintlify-mcp serve --project my-docs
+  # After setup, add to Claude Code:
+  claude mcp add my-docs -- bunx ${CLI_NAME} serve --project my-docs
+
+MINTLIFY API (for sites with built-in AI Assistant):
+  ${CLI_NAME} -p <project-id>
+
+  Known projects: ${Object.keys(KNOWN_DOCS).join(", ")}
+
+MANAGEMENT:
+  ${CLI_NAME} list                     List all projects
+  ${CLI_NAME} stop --project <id>      Stop RAG server
+  ${CLI_NAME} stop --all               Stop all servers
 `);
 }
 
@@ -105,6 +99,8 @@ function parseArgs(args: string[]): ParsedArgs {
       result.flags.verbose = true;
     } else if (arg === "--force" || arg === "-f") {
       result.flags.force = true;
+    } else if (arg === "--all") {
+      result.flags.all = true;
     } else if (arg.startsWith("--")) {
       const key = arg.slice(2);
       const next = args[i + 1];
@@ -123,7 +119,6 @@ function parseArgs(args: string[]): ParsedArgs {
         key === "n" ? "name" :
         key === "u" ? "url" :
         key === "i" ? "id" :
-        key === "d" ? "download" :
         key;
 
       if (next && !next.startsWith("-")) {
@@ -163,10 +158,61 @@ async function main(): Promise<void> {
 
   // Handle commands
   switch (parsed.command) {
+    // =========================================================================
+    // PRIMARY COMMANDS
+    // =========================================================================
+
+    case "setup":
+      if (!parsed.flags.url || !parsed.flags.id) {
+        console.error("Error: --url and --id are required for setup command");
+        console.error(`Usage: ${CLI_NAME} setup --url <docs-url> --id <project-id>`);
+        process.exit(1);
+      }
+      await setupCommand({
+        url: parsed.flags.url as string,
+        id: parsed.flags.id as string,
+        name: parsed.flags.name as string | undefined,
+        prefix: parsed.flags.prefix as string | undefined,
+        port: parsed.flags.port ? parseInt(parsed.flags.port as string) : undefined,
+        verbose: Boolean(parsed.flags.verbose),
+      });
+      break;
+
+    case "serve":
+      if (!parsed.flags.project) {
+        console.error("Error: --project is required for serve command");
+        console.error(`Usage: ${CLI_NAME} serve --project <id>`);
+        process.exit(1);
+      }
+      await serveCommand({ project: parsed.flags.project as string });
+      break;
+
+    case "list":
+      await listCommand();
+      break;
+
+    case "stop":
+      if (parsed.flags.all) {
+        await stopAllCommand();
+      } else if (!parsed.flags.project) {
+        console.error("Error: --project or --all is required for stop command");
+        console.error(`Usage: ${CLI_NAME} stop --project <id>`);
+        process.exit(1);
+      } else {
+        await stopCommand({
+          project: parsed.flags.project as string,
+          force: Boolean(parsed.flags.force),
+        });
+      }
+      break;
+
+    // =========================================================================
+    // LEGACY COMMANDS (backward compatibility)
+    // =========================================================================
+
     case "create":
       if (!parsed.flags.url || !parsed.flags.id) {
-        console.error("Error: --url and --id are required for create command");
-        console.error("Usage: mintlify-mcp create --url <docs-url> --id <project-id>");
+        console.error("Error: --url and --id are required");
         process.exit(1);
       }
       await createCommand({
@@ -181,19 +227,9 @@ async function main(): Promise<void> {
       });
       break;
 
-    case "serve":
-      if (!parsed.flags.project) {
-        console.error("Error: --project is required for serve command");
-        console.error("Usage: mintlify-mcp serve --project <id>");
-        process.exit(1);
-      }
-      await serveCommand({ project: parsed.flags.project as string });
-      break;
-
     case "seed":
       if (!parsed.flags.project) {
-        console.error("Error: --project is required for seed command");
-        console.error("Usage: mintlify-mcp seed --project <id>");
+        console.error("Error: --project is required");
         process.exit(1);
       }
       await seedCommand({
@@ -205,8 +241,7 @@ async function main(): Promise<void> {
 
     case "start":
       if (!parsed.flags.project) {
-        console.error("Error: --project is required for start command");
-        console.error("Usage: mintlify-mcp start --project <id>");
+        console.error("Error: --project is required");
         process.exit(1);
       }
       await startCommand({
@@ -216,31 +251,15 @@ async function main(): Promise<void> {
       });
       break;
 
-    case "stop":
-      if (parsed.flags.all) {
-        await stopAllCommand();
-      } else if (!parsed.flags.project) {
-        console.error("Error: --project is required for stop command");
-        console.error("Usage: mintlify-mcp stop --project <id>");
-        process.exit(1);
-      } else {
-        await stopCommand({
-          project: parsed.flags.project as string,
-          force: Boolean(parsed.flags.force),
-        });
-      }
-      break;
-
-    case "list":
-      await listCommand();
-      break;
-
     case "help":
       showHelp();
       break;
 
+    // =========================================================================
+    // MINTLIFY API MODE (shorthand: -p <project-id>)
+    // =========================================================================
+
     default:
-      // MINTLIFY API MODE: If no command but --project flag, use Mintlify's API
       if (parsed.flags.project) {
         const projectId = parsed.flags.project as string;
         const knownDoc = KNOWN_DOCS[projectId];
@@ -251,7 +270,7 @@ async function main(): Promise<void> {
           const projectName = (parsed.flags.name as string) || knownDoc.name;
           await startMcpServer(backend, projectName);
         } else {
-          // Try to load from config
+          // Try to load from local config
           const { loadProjectConfig } = await import("./config/loader");
           const config = await loadProjectConfig(projectId);
 
@@ -267,7 +286,7 @@ async function main(): Promise<void> {
         }
       } else if (parsed.command) {
         console.error(`Unknown command: ${parsed.command}`);
-        console.error("Run 'mintlify-mcp --help' for usage information.");
+        console.error(`Run '${CLI_NAME} --help' for usage information.`);
         process.exit(1);
       } else {
         showHelp();

@@ -2,7 +2,7 @@ import { loadProjectConfig, listProjects } from "../config/loader";
 import { paths, fileExists, remove } from "../config/paths";
 
 // =============================================================================
-// STOP COMMAND - Stop AgentOS server for a project
+// STOP COMMAND - Stop server for a project
 // =============================================================================
 
 export interface StopOptions {
@@ -23,7 +23,7 @@ export async function stopCommand(options: StopOptions): Promise<void> {
   const pidFile = paths.projectPid(project);
 
   if (!(await fileExists(pidFile))) {
-    console.log(`No running AgentOS found for project "${project}".`);
+    console.log(`No running server found for project "${project}".`);
     return;
   }
 
@@ -37,7 +37,7 @@ export async function stopCommand(options: StopOptions): Promise<void> {
     return;
   }
 
-  console.log(`Stopping AgentOS (PID: ${pid})...`);
+  console.log(`Stopping server (PID: ${pid})...`);
 
   // Kill the process using process.kill (Bun native)
   try {
@@ -54,10 +54,10 @@ export async function stopCommand(options: StopOptions): Promise<void> {
   // Remove PID file
   await remove(pidFile);
 
-  console.log("AgentOS stopped.");
+  console.log("Server stopped.");
 }
 
-/** Stop all running AgentOS instances */
+/** Stop all running server instances */
 export async function stopAllCommand(): Promise<void> {
   const projectIds = await listProjects();
   let stoppedCount = 0;
@@ -86,8 +86,8 @@ export async function stopAllCommand(): Promise<void> {
   }
 
   if (stoppedCount === 0) {
-    console.log("No running AgentOS instances found.");
+    console.log("No running server instances found.");
   } else {
-    console.log(`Stopped ${stoppedCount} AgentOS instance(s).`);
+    console.log(`Stopped ${stoppedCount} server instance(s).`);
   }
 }

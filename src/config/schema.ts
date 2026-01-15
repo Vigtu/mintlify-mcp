@@ -67,6 +67,7 @@ export function createDefaultProjectConfig(
     backend?: "agno" | "mintlify";
     mintlifyProjectId?: string;
     mintlifyDomain?: string;
+    agnoPort?: number;
   } = {}
 ): ProjectConfig {
   const config: ProjectConfig = {
@@ -85,7 +86,10 @@ export function createDefaultProjectConfig(
   };
 
   if (config.backend === "agno") {
-    config.agno = { ...DEFAULT_AGNO_CONFIG };
+    config.agno = {
+      ...DEFAULT_AGNO_CONFIG,
+      port: options.agnoPort || DEFAULT_AGNO_CONFIG.port,
+    };
   } else if (config.backend === "mintlify") {
     config.mintlify = {
       project_id: options.mintlifyProjectId || id,

@@ -30,7 +30,7 @@ export const paths = {
   /** Get project logs: ~/.mintlify-mcp/projects/{id}/logs */
   projectLogs: (id: string) => join(DATA_DIR, "projects", id, "logs"),
 
-  /** Get PID file for AgentOS: ~/.mintlify-mcp/projects/{id}/agent.pid */
+  /** Get PID file for server: ~/.mintlify-mcp/projects/{id}/agent.pid */
   projectPid: (id: string) => join(DATA_DIR, "projects", id, "agent.pid"),
 
   /** Get project docs directory: ~/.mintlify-mcp/projects/{id}/docs */

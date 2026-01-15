@@ -1,9 +1,9 @@
 import { loadProjectConfig, updateSeedingStatus } from "../config/loader";
-import { discoverPages, getMarkdownUrl, fetchWithMetadata } from "../discovery";
-import { isAgentOSRunning } from "../backends/agno";
+import { discoverPages, getMarkdownUrl, fetchWithMetadata, type DiscoveredPage } from "../discovery";
+import { isServerRunning } from "../backends/agno";
 
 // =============================================================================
-// SEED COMMAND - Seed documentation into knowledge base
+// SEED - Seed documentation into knowledge base
 // =============================================================================
 
 export interface SeedOptions {
@@ -12,6 +12,98 @@ export interface SeedOptions {
   verbose?: boolean;
 }
 
+export interface SeedResult {
+  success: number;
+  errors: number;
+}
+
+/** Seed docs to knowledge base (exported for use by setup command) */
+export async function seedDocs(
+  project: string,
+  pages: DiscoveredPage[],
+  port: number,
+  verbose: boolean = false
+): Promise<SeedResult> {
+  const knowledgeName = `${project}-docs`;
+  const baseUrl = `http://localhost:${port}`;
+  let successCount = 0;
+  let errorCount = 0;
+
+  for (let i = 0; i < pages.length; i++) {
+    const page = pages[i];
+    const mdUrl = getMarkdownUrl(page);
+
+    if (verbose) {
+      console.log(`   [${i + 1}/${pages.length}] ${page.path}...`);
+    } else {
+      process.stdout.write(`\r   Seeding: ${i + 1}/${pages.length} pages...`);
+    }
+
+    try {
+      // Fetch markdown and extract metadata
+      const result = await fetchWithMetadata(mdUrl, page.path);
+
+      if (!result) {
+        errorCount++;
+        if (verbose) {
+          console.error(`   Failed to fetch: ${mdUrl}`);
+        }
+        continue;
+      }
+
+      const { content, metadata } = result;
+
+      // Send to knowledge base via POST /knowledge/content
+      // Payload schema:
+      // {
+      //   "name": "project-docs",
+      //   "text_content": "# Full markdown content...",
+      //   "metadata": "{\"path\": \"/api/auth\", \"title\": \"...\", ...}"  // JSON string
+      // }
+      const response = await fetch(`${baseUrl}/knowledge/content`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: knowledgeName,
+          text_content: content,
+          metadata: JSON.stringify({
+            path: page.path,
+            title: metadata.title,
+            description: metadata.description,
+            section: extractSection(page.path),
+            source_url: page.url,
+          }),
+        }),
+      });
+
+      if (response.ok) {
+        successCount++;
+        if (verbose) {
+          console.log(`   Title: ${metadata.title}`);
+        }
+      } else {
+        errorCount++;
+        if (verbose) {
+          const errorText = await response.text();
+          console.error(`   Error: ${errorText}`);
+        }
+      }
+    } catch (error) {
+      errorCount++;
+      if (verbose) {
+        console.error(`   Error: ${error}`);
+      }
+    }
+  }
+
+  if (!verbose) {
+    console.log(); // New line after progress
+  }
+
+  return { success: successCount, errors: errorCount };
+}
+
+/** CLI command handler */
 export async function seedCommand(options: SeedOptions): Promise<void> {
   const { project, force = false, verbose = false } = options;
 
@@ -23,17 +115,17 @@ export async function seedCommand(options: SeedOptions): Promise<void> {
   }
 
   if (config.backend !== "agno") {
-    console.error(`Project "${project}" uses Mintlify backend.`);
-    console.error("Seeding is only needed for Agno-based projects.");
+    console.error(`Project "${project}" uses remote API backend.`);
+    console.error("Seeding is only needed for local RAG projects.");
     process.exit(1);
   }
 
   const port = config.agno?.port || 7777;
 
-  // Check if AgentOS is running
-  if (!(await isAgentOSRunning(port))) {
-    console.error(`AgentOS is not running on port ${port}.`);
-    console.error(`Start it with: mintlify-mcp start --project ${project}`);
+  // Check if server is running
+  if (!(await isServerRunning(port))) {
+    console.error(`Server is not running on port ${port}.`);
+    console.error(`Start it first with: start --project ${project}`);
     process.exit(1);
   }
 
@@ -60,94 +152,19 @@ export async function seedCommand(options: SeedOptions): Promise<void> {
 
   console.log(`Found ${discovery.pages.length} pages to seed.`);
 
-  const knowledgeName = `${project}-docs`;
-  const baseUrl = `http://localhost:${port}`;
-  let successCount = 0;
-  let errorCount = 0;
-
-  // Seed each page
-  for (let i = 0; i < discovery.pages.length; i++) {
-    const page = discovery.pages[i];
-    const mdUrl = getMarkdownUrl(page);
-
-    if (verbose) {
-      console.log(`[${i + 1}/${discovery.pages.length}] Seeding ${page.path}...`);
-    } else {
-      // Progress indicator
-      process.stdout.write(
-        `\rSeeding: ${i + 1}/${discovery.pages.length} pages...`
-      );
-    }
-
-    try {
-      // Fetch markdown and extract metadata
-      const result = await fetchWithMetadata(mdUrl, page.path);
-
-      if (!result) {
-        errorCount++;
-        if (verbose) {
-          console.error(`  Failed to fetch: ${mdUrl}`);
-        }
-        continue;
-      }
-
-      const { content, metadata } = result;
-
-      // Send to AgentOS knowledge base via POST /knowledge/content
-      // Payload schema:
-      // {
-      //   "name": "project-docs",
-      //   "text_content": "# Full markdown content...",
-      //   "metadata": "{\"path\": \"/api/auth\", \"title\": \"...\", ...}"  // JSON string
-      // }
-      const response = await fetch(`${baseUrl}/knowledge/content`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: knowledgeName,
-          text_content: content,
-          metadata: JSON.stringify({
-            path: page.path,
-            title: metadata.title,
-            description: metadata.description,
-            section: extractSection(page.path),
-            source_url: page.url,
-          }),
-        }),
-      });
-
-      if (response.ok) {
-        successCount++;
-        if (verbose) {
-          console.log(`  Title: ${metadata.title}`);
-        }
-      } else {
-        errorCount++;
-        if (verbose) {
-          const errorText = await response.text();
-          console.error(`  Error: ${errorText}`);
-        }
-      }
-    } catch (error) {
-      errorCount++;
-      if (verbose) {
-        console.error(`  Error: ${error}`);
-      }
-    }
-  }
-
-  console.log(); // New line after progress
+  // Seed docs
+  const result = await seedDocs(project, discovery.pages, port, verbose);
 
   // Update status
   await updateSeedingStatus(project, {
-    status: errorCount === 0 ? "completed" : "completed",
-    documents_count: successCount,
+    status: "completed",
+    documents_count: result.success,
     last_seeded: new Date().toISOString(),
   });
 
   console.log(`\nSeeding complete:`);
-  console.log(`  Success: ${successCount}`);
-  console.log(`  Errors:  ${errorCount}`);
+  console.log(`  Success: ${result.success}`);
+  console.log(`  Errors:  ${result.errors}`);
 }
 
 /** Extract section from path (first segment after root) */

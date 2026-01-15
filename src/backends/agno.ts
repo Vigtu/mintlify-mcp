@@ -1,7 +1,7 @@
 import type { Backend, AskResult, AgnoBackendConfig } from "./types";
 
 // =============================================================================
-// AGNO BACKEND - Calls AgentOS HTTP API
+// LOCAL BACKEND - Calls local RAG server API
 // =============================================================================
 
 interface AgentRunResponse {
@@ -43,7 +43,7 @@ export class AgnoBackend implements Backend {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`AgentOS error: ${response.status} - ${errorText}`);
+        throw new Error(`Server error: ${response.status} - ${errorText}`);
       }
 
       const result = (await response.json()) as AgentRunResponse;
@@ -69,17 +69,17 @@ export class AgnoBackend implements Backend {
       if (error instanceof Error) {
         if (error.message.includes("ECONNREFUSED")) {
           throw new Error(
-            `AgentOS server not running. Start it with: mintlify-mcp start --project ${this.projectId}`
+            `Server not running. Run setup first or start manually.`
           );
         }
         throw error;
       }
-      throw new Error("Unknown error calling AgentOS");
+      throw new Error("Unknown error calling server");
     }
   }
 
   clearHistory(): void {
-    // AgentOS manages conversation state internally
+    // Server manages conversation state internally
     // For now, we don't have a clear endpoint
     // Could implement via a POST to /agents/{name}/clear if available
   }
@@ -105,7 +105,7 @@ export class AgnoBackend implements Backend {
     }
   }
 
-  /** Get the AgentOS base URL */
+  /** Get the server base URL */
   getBaseUrl(): string {
     return this.baseUrl;
   }
@@ -124,8 +124,8 @@ export function createAgnoBackend(
   return new AgnoBackend({ type: "agno", projectId, port });
 }
 
-/** Check if AgentOS is running on a specific port */
-export async function isAgentOSRunning(port: number = 7777): Promise<boolean> {
+/** Check if server is running on a specific port */
+export async function isServerRunning(port: number = 7777): Promise<boolean> {
   try {
     const response = await fetch(`http://localhost:${port}/agents`, {
       method: "GET",
