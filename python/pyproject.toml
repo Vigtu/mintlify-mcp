@@ -6,6 +6,9 @@ requires-python = ">=3.10"
 dependencies = [
     "agno>=2.0.0",
     "lancedb>=0.5.0",
+    "pylance",
+    "pandas",
+    "pyarrow",
     "openai>=1.0.0",
     "tantivy",
     "fastapi",
