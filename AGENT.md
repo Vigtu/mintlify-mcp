@@ -98,3 +98,9 @@ bunx mintlify-mcp serve --project my-docs
 When debugging, modifying, or understanding the Mintlify API integration in `src/backends/mintlify.ts`:
 
 @docs/reverse-engineering-mintlify-api.md
+
+### Architecture Planning
+
+When planning new features, understanding design decisions, or implementing new backends:
+
+@docs/architecture-plan.md
