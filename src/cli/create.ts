@@ -7,8 +7,8 @@ import {
   createDefaultProjectConfig,
   type ProjectConfig,
 } from "../config/schema";
-import { paths, ensureDirExists, fileExists } from "../config/paths";
-import { discoverPages, isMintlifySite, getMarkdownUrl, type DiscoveredPage } from "../discovery";
+import { paths, ensureDirExists } from "../config/paths";
+import { discoverPages, isMintlifySite, getMarkdownUrl, extractMetadata, type DiscoveredPage } from "../discovery";
 
 // =============================================================================
 // CREATE COMMAND - Create a new project
@@ -269,8 +269,7 @@ async function downloadPage(
     const content = await response.text();
 
     // Extract metadata from markdown
-    const title = extractTitle(content, page.path);
-    const description = extractDescription(content);
+    const { title, description } = extractMetadata(content, page.path);
 
     // Ensure parent directory exists
     await ensureDirExists(dirname(localPath));
@@ -297,50 +296,6 @@ async function downloadPage(
     }
     return null;
   }
-}
-
-/** Extract title from markdown (first H1 heading) */
-function extractTitle(content: string, fallbackPath: string): string {
-  const match = content.match(/^#\s+(.+)$/m);
-  if (match) {
-    return match[1].trim();
-  }
-  // Fallback: convert path to title
-  const lastSegment = fallbackPath.split("/").filter(Boolean).pop() || "Untitled";
-  return lastSegment
-    .replace(/-/g, " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-/** Extract description from markdown (first blockquote or paragraph) */
-function extractDescription(content: string): string {
-  // Try blockquote first (common in Mintlify docs)
-  const blockquoteMatch = content.match(/^>\s*(.+)$/m);
-  if (blockquoteMatch) {
-    return blockquoteMatch[1].trim();
-  }
-
-  // Try first paragraph (skip headings, code blocks, empty lines)
-  const lines = content.split("\n");
-  for (const line of lines) {
-    const trimmed = line.trim();
-    // Skip empty lines, headings, code blocks, HTML tags
-    if (
-      !trimmed ||
-      trimmed.startsWith("#") ||
-      trimmed.startsWith("```") ||
-      trimmed.startsWith("<") ||
-      trimmed.startsWith("|") ||
-      trimmed.startsWith("-") ||
-      trimmed.startsWith("*")
-    ) {
-      continue;
-    }
-    // Found a paragraph
-    return trimmed.slice(0, 200); // Limit to 200 chars
-  }
-
-  return "";
 }
 
 /** Convert page path to local file path */
