@@ -22,77 +22,91 @@ export interface SeedResult {
   errors: number;
 }
 
+const DEFAULT_CONCURRENCY = 10;
+
+/** Seed a single page to knowledge base */
+async function seedPage(
+  page: DiscoveredPage,
+  baseUrl: string,
+): Promise<{ success: boolean; error?: string }> {
+  const mdUrl = getMarkdownUrl(page);
+
+  try {
+    const result = await fetchWithMetadata(mdUrl, page.path);
+
+    if (!result) {
+      return { success: false, error: `Failed to fetch: ${mdUrl}` };
+    }
+
+    const { content, metadata } = result;
+    const docName = `${page.path.replace(/^\//, "").replace(/\//g, "-") || "index"}`;
+
+    const response = await fetch(`${baseUrl}/seed`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: docName,
+        text_content: content,
+        metadata: JSON.stringify({
+          path: page.path,
+          title: metadata.title,
+          description: metadata.description,
+          section: extractSection(page.path),
+          source_url: page.url,
+        }),
+      }),
+    });
+
+    if (response.ok) {
+      return { success: true };
+    } else {
+      const errorText = await response.text();
+      return { success: false, error: errorText };
+    }
+  } catch (error) {
+    return { success: false, error: String(error) };
+  }
+}
+
 /** Seed docs to knowledge base (exported for use by setup command) */
 export async function seedDocs(
   _project: string,
   pages: DiscoveredPage[],
   port: number,
   verbose: boolean = false,
+  concurrency: number = DEFAULT_CONCURRENCY,
 ): Promise<SeedResult> {
   const baseUrl = `http://localhost:${port}`;
   let successCount = 0;
   let errorCount = 0;
+  let completed = 0;
 
-  for (let i = 0; i < pages.length; i++) {
-    const page = pages[i];
-    const mdUrl = getMarkdownUrl(page);
+  // Process in parallel batches
+  for (let i = 0; i < pages.length; i += concurrency) {
+    const batch = pages.slice(i, i + concurrency);
 
-    if (verbose) {
-      console.log(`   [${i + 1}/${pages.length}] ${page.path}...`);
-    } else {
-      process.stdout.write(`\r   Seeding: ${i + 1}/${pages.length} pages...`);
-    }
+    const results = await Promise.all(
+      batch.map((page) => seedPage(page, baseUrl)),
+    );
 
-    try {
-      // Fetch markdown and extract metadata
-      const result = await fetchWithMetadata(mdUrl, page.path);
-
-      if (!result) {
-        errorCount++;
-        if (verbose) {
-          console.error(`   Failed to fetch: ${mdUrl}`);
-        }
-        continue;
-      }
-
-      const { content, metadata } = result;
-
-      // Send to knowledge base via custom /seed endpoint
-      // Uses knowledge.add_content_async() directly (bypasses AgentOS REST API)
-      const docName = `${page.path.replace(/^\//, "").replace(/\//g, "-") || "index"}`;
-      const response = await fetch(`${baseUrl}/seed`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: docName,
-          text_content: content,
-          metadata: JSON.stringify({
-            path: page.path,
-            title: metadata.title,
-            description: metadata.description,
-            section: extractSection(page.path),
-            source_url: page.url,
-          }),
-        }),
-      });
-
-      if (response.ok) {
+    for (const result of results) {
+      completed++;
+      if (result.success) {
         successCount++;
-        if (verbose) {
-          console.log(`   Title: ${metadata.title}`);
-        }
       } else {
         errorCount++;
-        if (verbose) {
-          const errorText = await response.text();
-          console.error(`   Error: ${errorText}`);
+        if (verbose && result.error) {
+          console.error(`   Error: ${result.error}`);
         }
       }
-    } catch (error) {
-      errorCount++;
-      if (verbose) {
-        console.error(`   Error: ${error}`);
-      }
+    }
+
+    if (!verbose) {
+      process.stdout.write(
+        `\r   Seeding: ${completed}/${pages.length} pages...`,
+      );
+    } else {
+      console.log(`   [${completed}/${pages.length}] batch complete`);
     }
   }
 
