@@ -54,13 +54,14 @@ export async function seedDocs(
       const { content, metadata } = result;
 
       // Send to knowledge base via POST /knowledge/content
+      // Requires db_id query param to identify the knowledge base
       // Payload schema:
       // {
       //   "name": "project-docs",
       //   "text_content": "# Full markdown content...",
       //   "metadata": "{\"path\": \"/api/auth\", \"title\": \"...\", ...}"  // JSON string
       // }
-      const response = await fetch(`${baseUrl}/knowledge/content`, {
+      const response = await fetch(`${baseUrl}/knowledge/content?db_id=${knowledgeName}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
