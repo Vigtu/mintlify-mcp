@@ -75,17 +75,18 @@ def create_agent_os(
     )
 
 
-# Global variables for module-level access (required by serve)
-_agent_os: AgentOS | None = None
-app = None
+# Initialize at module level using environment variables
+# These are set by main() before serve() reimports the module
+_project_id = os.environ.get("AGNO_PROJECT_ID")
+_data_dir = Path(os.environ.get("AGNO_DATA_DIR", Path.home() / ".mintlify-mcp"))
+_model_id = os.environ.get("AGNO_MODEL_ID", "gpt-4o-mini")
 
-
-def initialize(project_id: str, data_dir: Path, model_id: str = "gpt-4o-mini"):
-    """Initialize the AgentOS instance."""
-    global _agent_os, app
-    _agent_os = create_agent_os(project_id, data_dir, model_id)
+if _project_id:
+    _agent_os = create_agent_os(_project_id, _data_dir, _model_id)
     app = _agent_os.get_app()
-    return _agent_os
+else:
+    _agent_os = None
+    app = None
 
 
 def main():
@@ -127,15 +128,20 @@ def main():
         print("Error: OPENAI_API_KEY environment variable is required")
         exit(1)
 
+    # Set environment variables for module-level initialization
+    os.environ["AGNO_PROJECT_ID"] = args.project
+    os.environ["AGNO_DATA_DIR"] = str(args.data_dir)
+    os.environ["AGNO_MODEL_ID"] = args.model
+
     print(f"Starting AgentOS for project: {args.project}")
     print(f"  Data dir: {args.data_dir}")
     print(f"  Port: {args.port}")
     print(f"  Model: {args.model}")
 
-    # Initialize AgentOS
-    agent_os = initialize(args.project, args.data_dir, args.model)
+    # Create AgentOS for initial run (before serve reimports)
+    agent_os = create_agent_os(args.project, args.data_dir, args.model)
 
-    # Serve
+    # Serve - uvicorn will reimport module and use env vars
     agent_os.serve(
         app="server.main:app",
         port=args.port,
