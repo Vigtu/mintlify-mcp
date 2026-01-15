@@ -39,6 +39,7 @@ dependencies = [
     { name = "fastapi" },
     { name = "lancedb" },
     { name = "openai" },
+    { name = "python-dotenv" },
     { name = "tantivy" },
     { name = "uvicorn" },
 ]
@@ -49,6 +50,7 @@ requires-dist = [
     { name = "fastapi" },
     { name = "lancedb", specifier = ">=0.5.0" },
     { name = "openai", specifier = ">=1.0.0" },
+    { name = "python-dotenv" },
     { name = "tantivy" },
     { name = "uvicorn" },
 ]

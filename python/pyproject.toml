@@ -10,6 +10,7 @@ dependencies = [
     "tantivy",
     "fastapi",
     "uvicorn",
+    "python-dotenv",
 ]
 
 [project.scripts]
