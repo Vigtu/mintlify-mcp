@@ -1,5 +1,5 @@
 import { loadProjectConfig, updateSeedingStatus } from "../config/loader";
-import { discoverPages, getMarkdownUrl } from "../discovery";
+import { discoverPages, getMarkdownUrl, fetchWithMetadata } from "../discovery";
 import { isAgentOSRunning } from "../backends/agno";
 
 // =============================================================================
@@ -80,14 +80,42 @@ export async function seedCommand(options: SeedOptions): Promise<void> {
     }
 
     try {
+      // Fetch markdown and extract metadata
+      const result = await fetchWithMetadata(mdUrl, page.path);
+
+      if (!result) {
+        errorCount++;
+        if (verbose) {
+          console.error(`  Failed to fetch: ${mdUrl}`);
+        }
+        continue;
+      }
+
+      const { content, metadata } = result;
+
+      // Send to AgentOS knowledge base
+      // Payload example:
+      // {
+      //   "knowledge_name": "project-docs",
+      //   "content": "# Full markdown content...",
+      //   "metadata": {
+      //     "path": "/agent-os/api/authentication",
+      //     "title": "AgentOS Authentication",
+      //     "description": "Authenticate with AgentOS using RBAC and JWT tokens",
+      //     "section": "agent-os",
+      //     "source_url": "https://docs.agno.com/agent-os/api/authentication"
+      //   }
+      // }
       const response = await fetch(`${baseUrl}/knowledge/content`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           knowledge_name: knowledgeName,
-          url: mdUrl,
+          content: content,
           metadata: {
             path: page.path,
+            title: metadata.title,
+            description: metadata.description,
             section: extractSection(page.path),
             source_url: page.url,
           },
@@ -97,6 +125,9 @@ export async function seedCommand(options: SeedOptions): Promise<void> {
 
       if (response.ok) {
         successCount++;
+        if (verbose) {
+          console.log(`  Title: ${metadata.title}`);
+        }
       } else {
         errorCount++;
         if (verbose) {
