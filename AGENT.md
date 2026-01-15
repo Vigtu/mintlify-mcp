@@ -341,6 +341,9 @@ bun test
 
 # Type check
 bun run typecheck
+
+# Lint + format (auto-fix)
+bun run lint
 ```
 
 ## Tech Stack
