@@ -10,6 +10,11 @@ import os
 from pathlib import Path
 from textwrap import dedent
 
+from dotenv import load_dotenv
+
+# Load .env from project root (parent of python/)
+load_dotenv(Path(__file__).parent.parent.parent / ".env")
+
 from agno.agent import Agent
 from agno.knowledge.embedder.openai import OpenAIEmbedder
 from agno.knowledge.knowledge import Knowledge
@@ -42,7 +47,7 @@ def create_agent(project_id: str, knowledge: Knowledge, model_id: str) -> Agent:
         model=OpenAIChat(id=model_id),
         knowledge=knowledge,
         search_knowledge=True,
-        max_tool_calls=3,
+        tool_call_limit=3,
         instructions=dedent(f"""\
             You are a helpful documentation assistant for {project_id}.
             Search the knowledge base to answer questions about the documentation.
