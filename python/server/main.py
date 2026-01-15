@@ -6,9 +6,11 @@ Usage:
 """
 
 import argparse
+import asyncio
 import os
 from pathlib import Path
 from textwrap import dedent
+from typing import Optional
 
 from dotenv import load_dotenv
 
@@ -21,11 +23,14 @@ from agno.knowledge.knowledge import Knowledge
 from agno.models.openai import OpenAIChat
 from agno.os import AgentOS
 from agno.vectordb.lancedb import LanceDb, SearchType
+from fastapi import HTTPException
+from pydantic import BaseModel
 
 
 def create_knowledge(project_id: str, data_dir: Path) -> Knowledge:
-    """Create Knowledge with LanceDB vector store."""
-    lancedb_path = data_dir / "projects" / project_id / "lancedb"
+    """Create Knowledge with LanceDB vector store (no contents_db for simplicity)."""
+    project_dir = data_dir / "projects" / project_id
+    lancedb_path = project_dir / "lancedb"
     lancedb_path.mkdir(parents=True, exist_ok=True)
 
     return Knowledge(
@@ -58,21 +63,59 @@ def create_agent(project_id: str, knowledge: Knowledge, model_id: str) -> Agent:
     )
 
 
+# =============================================================================
+# Custom /seed endpoint - bypasses AgentOS REST API complexity
+# =============================================================================
+
+class SeedRequest(BaseModel):
+    """Request body for /seed endpoint."""
+    name: str
+    text_content: str
+    metadata: Optional[str] = None  # JSON string
+
+
+class SeedResponse(BaseModel):
+    """Response for /seed endpoint."""
+    success: bool
+    message: str
+
+
 def create_agent_os(
     project_id: str,
     data_dir: Path,
     model_id: str = "gpt-4o-mini",
-) -> AgentOS:
-    """Create AgentOS instance for a project."""
+) -> tuple[AgentOS, Knowledge]:
+    """Create AgentOS instance for a project. Returns (agent_os, knowledge)."""
+    from fastapi import FastAPI
+
     knowledge = create_knowledge(project_id, data_dir)
     agent = create_agent(project_id, knowledge, model_id)
 
-    return AgentOS(
+    # Create custom FastAPI app with /seed endpoint BEFORE AgentOS
+    base_app = FastAPI()
+
+    @base_app.post("/seed", response_model=SeedResponse)
+    async def seed_content(request: SeedRequest) -> SeedResponse:
+        """Add content to knowledge base using SDK directly."""
+        try:
+            await knowledge.add_content_async(
+                name=request.name,
+                text_content=request.text_content,
+            )
+            return SeedResponse(success=True, message=f"Added: {request.name}")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    # Pass custom app to AgentOS - it will merge routes
+    agent_os = AgentOS(
         id=project_id,
         description=f"Documentation assistant for {project_id}",
         agents=[agent],
         knowledge=[knowledge],
+        base_app=base_app,
     )
+
+    return agent_os, knowledge
 
 
 # Initialize at module level using environment variables
@@ -82,10 +125,11 @@ _data_dir = Path(os.environ.get("AGNO_DATA_DIR", Path.home() / ".mintlify-mcp"))
 _model_id = os.environ.get("AGNO_MODEL_ID", "gpt-4o-mini")
 
 if _project_id:
-    _agent_os = create_agent_os(_project_id, _data_dir, _model_id)
+    _agent_os, _knowledge = create_agent_os(_project_id, _data_dir, _model_id)
     app = _agent_os.get_app()
 else:
     _agent_os = None
+    _knowledge = None
     app = None
 
 
@@ -139,7 +183,7 @@ def main():
     print(f"  Model: {args.model}")
 
     # Create AgentOS for initial run (before serve reimports)
-    agent_os = create_agent_os(args.project, args.data_dir, args.model)
+    agent_os, _ = create_agent_os(args.project, args.data_dir, args.model)
 
     # Serve - uvicorn will reimport module and use env vars
     agent_os.serve(
