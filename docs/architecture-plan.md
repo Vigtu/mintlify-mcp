@@ -286,6 +286,14 @@ async function createBackend(projectId: string): Promise<Backend> {
 
 ---
 
+## Enterprise Deployment
+
+For production deployments in companies with private networks, see:
+
+@docs/enterprise-architecture.md
+
+---
+
 ## References
 
 - [Vectra](https://github.com/Stevenic/vectra) - Local vector database for TypeScript

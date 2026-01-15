@@ -104,3 +104,9 @@ When debugging, modifying, or understanding the Mintlify API integration in `src
 When planning new features, understanding design decisions, or implementing new backends:
 
 @docs/architecture-plan.md
+
+### Enterprise Deployment
+
+For production deployments, self-hosted setups, and company-wide distribution:
+
+@docs/enterprise-architecture.md
