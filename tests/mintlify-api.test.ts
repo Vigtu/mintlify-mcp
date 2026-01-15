@@ -1,4 +1,4 @@
-import { describe, test, expect, setDefaultTimeout } from "bun:test";
+import { describe, expect, setDefaultTimeout, test } from "bun:test";
 import { join } from "node:path";
 import { createMintlifyBackend } from "../src/backends/mintlify";
 
@@ -142,11 +142,14 @@ describe("MCP Server Startup", () => {
   });
 
   test("custom name with -n flag", async () => {
-    const proc = Bun.spawn(["bun", CLI_PATH, "-p", "agno-v2", "-n", "My Custom Docs"], {
-      stdout: "pipe",
-      stderr: "pipe",
-      stdin: "pipe",
-    });
+    const proc = Bun.spawn(
+      ["bun", CLI_PATH, "-p", "agno-v2", "-n", "My Custom Docs"],
+      {
+        stdout: "pipe",
+        stderr: "pipe",
+        stdin: "pipe",
+      },
+    );
 
     const timeout = setTimeout(() => proc.kill(), 5000);
     const stderr = await new Response(proc.stderr).text();

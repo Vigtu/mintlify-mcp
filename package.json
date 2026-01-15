@@ -17,7 +17,7 @@
     "dev": "bun --watch src/index.ts",
     "test": "bun test",
     "typecheck": "bunx tsc --noEmit",
-    "lint": "biome check --write --unsafe src"
+    "lint": "biome check --write --unsafe src tests"
   },
   "keywords": [
     "mcp",
