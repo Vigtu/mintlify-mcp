@@ -42,6 +42,7 @@ def create_agent(project_id: str, knowledge: Knowledge, model_id: str) -> Agent:
         model=OpenAIChat(id=model_id),
         knowledge=knowledge,
         search_knowledge=True,
+        max_tool_calls=3,
         instructions=dedent(f"""\
             You are a helpful documentation assistant for {project_id}.
             Search the knowledge base to answer questions about the documentation.
