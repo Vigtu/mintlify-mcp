@@ -11,4 +11,4 @@ dependencies = [
 ]
 
 [project.scripts]
-agno-server = "agno.main:main"
+agno-server = "server.main:main"
