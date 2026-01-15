@@ -1,0 +1,14 @@
+[project]
+name = "agno-server"
+version = "0.1.0"
+description = "AgentOS server for documentation RAG"
+requires-python = ">=3.10"
+dependencies = [
+    "agno>=2.0.0",
+    "lancedb>=0.5.0",
+    "openai>=1.0.0",
+    "tantivy",
+]
+
+[project.scripts]
+agno-server = "agno.main:main"
