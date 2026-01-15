@@ -32,3 +32,10 @@ coverage/
 
 # Downloaded documentation
 downloaded-docs/
+
+# Python
+python/.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.uv/
