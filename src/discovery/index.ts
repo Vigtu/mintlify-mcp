@@ -1,5 +1,6 @@
 import { parseSitemap, filterByPrefix, type DiscoveredPage } from "./sitemap";
 import { parseMintJson } from "./mintjson";
+export { extractTitle, extractDescription, extractMetadata, fetchWithMetadata, type PageMetadata } from "./metadata";
 
 // =============================================================================
 // DISCOVERY ENGINE - Orchestrates page discovery
