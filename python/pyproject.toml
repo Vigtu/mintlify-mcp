@@ -8,6 +8,8 @@ dependencies = [
     "lancedb>=0.5.0",
     "openai>=1.0.0",
     "tantivy",
+    "fastapi",
+    "uvicorn",
 ]
 
 [project.scripts]
