@@ -2,7 +2,7 @@
 Agno server for documentation RAG.
 
 Usage:
-    python -m agno.main --project my-docs --port 7777
+    python -m server.main --project my-docs --port 7777
 """
 
 import argparse
@@ -132,7 +132,7 @@ def main():
 
     # Serve
     agent_os.serve(
-        app="agno.main:app",
+        app="server.main:app",
         port=args.port,
         reload=args.reload,
     )
