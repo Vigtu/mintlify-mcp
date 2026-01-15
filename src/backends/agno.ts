@@ -30,15 +30,14 @@ export class AgnoBackend implements Backend {
     const agentName = `${this.projectId}-assistant`;
 
     try {
+      // AgentOS API expects multipart/form-data
+      const formData = new FormData();
+      formData.append("message", question);
+      formData.append("stream", "false");
+
       const response = await fetch(`${this.baseUrl}/agents/${agentName}/runs`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          message: question,
-          stream: false,
-        }),
+        body: formData,
       });
 
       if (!response.ok) {
