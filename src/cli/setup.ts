@@ -7,6 +7,7 @@ import {
 import { discoverPages, isMintlifySite } from "../discovery";
 import { seedDocs } from "./seed";
 import { startServer, waitForServer } from "./start";
+import { stopAllServers } from "./stop";
 
 // =============================================================================
 // SETUP COMMAND - One-command setup for local RAG assistant
@@ -113,6 +114,9 @@ export async function setupCommand(options: SetupOptions): Promise<void> {
   // ==========================================================================
   // STEP 4: Start server
   // ==========================================================================
+
+  // Stop any existing servers first
+  await stopAllServers(true);
 
   console.log(`\n🤖 Starting RAG server on port ${port}...`);
 

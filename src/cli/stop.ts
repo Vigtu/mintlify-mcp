@@ -58,7 +58,7 @@ export async function stopCommand(options: StopOptions): Promise<void> {
 }
 
 /** Stop all running server instances */
-export async function stopAllCommand(): Promise<void> {
+export async function stopAllServers(silent: boolean = false): Promise<number> {
   const projectIds = await listProjects();
   let stoppedCount = 0;
 
@@ -73,7 +73,7 @@ export async function stopAllCommand(): Promise<void> {
     const pid = parseInt(pidContent.trim(), 10);
 
     if (!Number.isNaN(pid)) {
-      console.log(`Stopping ${projectId} (PID: ${pid})...`);
+      if (!silent) console.log(`Stopping ${projectId} (PID: ${pid})...`);
       try {
         process.kill(pid, "SIGTERM");
       } catch {
@@ -84,6 +84,13 @@ export async function stopAllCommand(): Promise<void> {
 
     await remove(pidFile);
   }
+
+  return stoppedCount;
+}
+
+/** CLI command: Stop all servers */
+export async function stopAllCommand(): Promise<void> {
+  const stoppedCount = await stopAllServers();
 
   if (stoppedCount === 0) {
     console.log("No running server instances found.");
