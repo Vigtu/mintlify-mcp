@@ -93,33 +93,26 @@ export async function seedCommand(options: SeedOptions): Promise<void> {
 
       const { content, metadata } = result;
 
-      // Send to AgentOS knowledge base
-      // Payload example:
+      // Send to AgentOS knowledge base via POST /knowledge/content
+      // Payload schema:
       // {
-      //   "knowledge_name": "project-docs",
-      //   "content": "# Full markdown content...",
-      //   "metadata": {
-      //     "path": "/agent-os/api/authentication",
-      //     "title": "AgentOS Authentication",
-      //     "description": "Authenticate with AgentOS using RBAC and JWT tokens",
-      //     "section": "agent-os",
-      //     "source_url": "https://docs.agno.com/agent-os/api/authentication"
-      //   }
+      //   "name": "project-docs",
+      //   "text_content": "# Full markdown content...",
+      //   "metadata": "{\"path\": \"/api/auth\", \"title\": \"...\", ...}"  // JSON string
       // }
       const response = await fetch(`${baseUrl}/knowledge/content`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          knowledge_name: knowledgeName,
-          content: content,
-          metadata: {
+          name: knowledgeName,
+          text_content: content,
+          metadata: JSON.stringify({
             path: page.path,
             title: metadata.title,
             description: metadata.description,
             section: extractSection(page.path),
             source_url: page.url,
-          },
-          skip_if_exists: !force,
+          }),
         }),
       });
 

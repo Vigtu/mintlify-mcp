@@ -48,7 +48,7 @@ export async function startCommand(options: StartOptions): Promise<void> {
   const pythonScript = await findPythonScript();
   if (!pythonScript) {
     console.error("Python AgentOS script not found.");
-    console.error("Make sure python/mintlify_os/main.py exists.");
+    console.error("Make sure python/agno/main.py exists.");
     process.exit(1);
   }
 
@@ -67,7 +67,7 @@ export async function startCommand(options: StartOptions): Promise<void> {
   };
 
   const proc = Bun.spawn(
-    ["python", "-m", "mintlify_os.main", project, "--port", String(port)],
+    ["uv", "run", "python", "-m", "agno.main", "--project", project, "--port", String(port)],
     {
       cwd: findPythonDir(),
       env,
@@ -118,9 +118,9 @@ function findPythonDir(): string {
 /** Find the Python script */
 async function findPythonScript(): Promise<string | null> {
   const possiblePaths = [
-    `${import.meta.dir}/../../python/mintlify_os/main.py`,
-    `${process.cwd()}/python/mintlify_os/main.py`,
-    `${paths.root}/python/mintlify_os/main.py`,
+    `${import.meta.dir}/../../python/agno/main.py`,
+    `${process.cwd()}/python/agno/main.py`,
+    `${paths.root}/python/agno/main.py`,
   ];
 
   for (const p of possiblePaths) {
