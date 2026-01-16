@@ -45,12 +45,43 @@ def create_knowledge(project_id: str, data_dir: Path) -> Knowledge:
     )
 
 
+def create_knowledge_retriever(knowledge: Knowledge):
+    """Create a custom knowledge retriever that filters out internal metadata fields."""
+    async def knowledge_retriever(
+        agent: Agent, query: str, num_documents: Optional[int] = None, **kwargs
+    ) -> Optional[list[dict]]:
+        """Search knowledge base and return results with cleaned metadata."""
+        # Search knowledge base
+        results = knowledge.search(query=query, max_results=num_documents or 10)
+
+        if not results:
+            return None
+
+        # Filter out internal/redundant fields from metadata
+        cleaned_results = []
+        for doc in results:
+            cleaned_meta = {
+                k: v for k, v in (doc.meta_data or {}).items()
+                if k not in ("chunk", "chunk_size", "path")
+            }
+            cleaned_results.append({
+                "name": doc.name,
+                "content": doc.content,
+                "meta_data": cleaned_meta,
+            })
+
+        return cleaned_results
+
+    return knowledge_retriever
+
+
 def create_agent(project_id: str, knowledge: Knowledge, model_id: str) -> Agent:
     """Create Agent with knowledge search enabled."""
     return Agent(
         name=f"{project_id}-assistant",
         model=OpenAIChat(id=model_id),
         knowledge=knowledge,
+        knowledge_retriever=create_knowledge_retriever(knowledge),
         search_knowledge=True,
         tool_call_limit=3,
         instructions=dedent(f"""\
