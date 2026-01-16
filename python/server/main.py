@@ -98,9 +98,16 @@ def create_agent_os(
     async def seed_content(request: SeedRequest) -> SeedResponse:
         """Add content to knowledge base using SDK directly."""
         try:
+            # Parse metadata JSON if provided
+            meta_data = None
+            if request.metadata:
+                import json
+                meta_data = json.loads(request.metadata)
+
             await knowledge.add_content_async(
                 name=request.name,
                 text_content=request.text_content,
+                metadata=meta_data,
             )
             return SeedResponse(success=True, message=f"Added: {request.name}")
         except Exception as e:
