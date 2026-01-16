@@ -14,59 +14,11 @@ interface ToolMessage {
   }>;
 }
 
-interface KnowledgeResult {
-  name: string;
-  content: string;
-  meta_data?: {
-    source_url?: string;
-    title?: string;
-    path?: string;
-  };
-}
-
 interface AgentRunResponse {
   content?: string;
   message?: string;
   run_id?: string;
   messages?: ToolMessage[];
-}
-
-/** Extract unique sources from knowledge base tool results */
-function extractSources(messages: ToolMessage[]): Map<string, string> {
-  const sources = new Map<string, string>(); // url -> title
-
-  for (const msg of messages) {
-    if (msg.role === "tool" && msg.content) {
-      try {
-        const results = JSON.parse(msg.content) as KnowledgeResult[];
-        for (const result of results) {
-          if (result.meta_data?.source_url) {
-            const title =
-              result.meta_data.title ||
-              result.name ||
-              result.meta_data.path ||
-              "Source";
-            sources.set(result.meta_data.source_url, title);
-          }
-        }
-      } catch {
-        // Not JSON or different format, skip
-      }
-    }
-  }
-
-  return sources;
-}
-
-/** Format sources as markdown links */
-function formatSources(sources: Map<string, string>): string {
-  if (sources.size === 0) return "";
-
-  const links = Array.from(sources.entries())
-    .map(([url, title]) => `- [${title}](${url})`)
-    .join("\n");
-
-  return `\n\n---\n**Sources:**\n${links}`;
 }
 
 export class AgnoBackend implements Backend {
@@ -118,11 +70,8 @@ export class AgnoBackend implements Backend {
         answer = "No response generated.";
       }
 
-      // Extract and append sources from knowledge base results
-      if (result.messages) {
-        const sources = extractSources(result.messages);
-        answer += formatSources(sources);
-      }
+      // Sources are now handled by the LLM in the response (language-aware)
+      // The agent instructions tell the LLM to include "Want to learn more?" section
 
       return { answer };
     } catch (error) {
