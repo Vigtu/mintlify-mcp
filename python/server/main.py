@@ -6,7 +6,6 @@ Usage:
 """
 
 import argparse
-import asyncio
 import os
 from pathlib import Path
 from textwrap import dedent
@@ -45,32 +44,124 @@ def create_knowledge(project_id: str, data_dir: Path) -> Knowledge:
     )
 
 
+import json as _json
+
+# LanceDB hybrid search returns _relevance_score (higher = better)
+# Typical range is ~0.01-0.02 for relevant results
+# Set threshold to filter out very low relevance results
+MIN_SCORE = 0.015  # Minimum relevance score threshold (balanced: ~5-8 results)
+
+
 def create_knowledge_retriever(knowledge: Knowledge):
-    """Create a custom knowledge retriever that filters out internal metadata fields."""
+    """Create a custom knowledge retriever with score filtering and clean metadata.
+
+    This bypasses Knowledge.search() to access raw LanceDB results with _score column.
+    LanceDB hybrid search returns _score (higher = better).
+    """
+
     async def knowledge_retriever(
         agent: Agent, query: str, num_documents: Optional[int] = None, **kwargs
     ) -> Optional[list[dict]]:
-        """Search knowledge base and return results with cleaned metadata."""
-        # Search knowledge base
-        results = knowledge.search(query=query, max_results=num_documents or 10)
+        """Search knowledge base, filter by score, and return results with cleaned metadata."""
+        num_docs = num_documents or 10
 
-        if not results:
+        # Access the vector_db directly to get raw results with scores
+        vector_db = knowledge.vector_db
+        if vector_db is None:
             return None
 
-        # Filter out internal/redundant fields from metadata
-        cleaned_results = []
-        for doc in results:
-            cleaned_meta = {
-                k: v for k, v in (doc.meta_data or {}).items()
-                if k not in ("chunk", "chunk_size", "path")
-            }
-            cleaned_results.append({
-                "name": doc.name,
-                "content": doc.content,
-                "meta_data": cleaned_meta,
-            })
+        # Use hybrid_search directly to get pandas DataFrame with _score
+        try:
+            raw_results = vector_db.hybrid_search(query=query, limit=num_docs * 2)
+        except Exception as e:
+            print(f"[DEBUG] hybrid_search error: {e}, falling back to knowledge.search()", flush=True)
+            # Fallback to normal search without score filtering
+            results = knowledge.search(query=query, max_results=num_docs)
+            if not results:
+                return None
+            return [
+                {
+                    "name": doc.name,
+                    "content": doc.content,
+                    "meta_data": {
+                        k: v for k, v in (doc.meta_data or {}).items() if k not in ("chunk", "chunk_size", "path")
+                    },
+                }
+                for doc in results[:num_docs]
+            ]
 
-        return cleaned_results
+        if raw_results is None or raw_results.empty:
+            return None
+
+        # Determine score column name (LanceDB hybrid search uses _relevance_score)
+        score_col = None
+        for col in ["_relevance_score", "_score", "_distance"]:
+            if col in raw_results.columns:
+                score_col = col
+                break
+
+        # Debug: show score info
+        if score_col:
+            scores = raw_results[score_col]
+            print(
+                f"[DEBUG] {score_col} range: min={scores.min():.6f}, max={scores.max():.6f}, mean={scores.mean():.6f}",
+                flush=True,
+            )
+
+            # For _distance, lower is better; for _score/_relevance_score, higher is better
+            if score_col == "_distance":
+                # Convert distance to score (invert)
+                max_dist = scores.max()
+                if max_dist > 0:
+                    raw_results["_norm_score"] = 1 - (scores / max_dist)
+                    filtered_df = raw_results[raw_results["_norm_score"] >= MIN_SCORE]
+                else:
+                    filtered_df = raw_results
+            else:
+                # Higher is better
+                filtered_df = raw_results[raw_results[score_col] >= MIN_SCORE]
+
+            print(
+                f"[DEBUG] After score filter (>= {MIN_SCORE}): {len(filtered_df)} / {len(raw_results)} results",
+                flush=True,
+            )
+        else:
+            filtered_df = raw_results
+            print(f"[DEBUG] No score column found, using all {len(raw_results)} results", flush=True)
+
+        if filtered_df.empty:
+            return None
+
+        # Build results with deduplication
+        seen_urls: dict[str, int] = {}
+        final_results = []
+
+        for _, row in filtered_df.iterrows():
+            if len(final_results) >= num_docs:
+                break
+
+            payload = _json.loads(row["payload"])
+            source_url = (payload.get("meta_data") or {}).get("source_url", payload.get("name", ""))
+
+            # Max 2 chunks per source URL
+            if seen_urls.get(source_url, 0) >= 2:
+                continue
+            seen_urls[source_url] = seen_urls.get(source_url, 0) + 1
+
+            # Clean metadata - remove internal fields
+            meta = payload.get("meta_data") or {}
+            cleaned_meta = {k: v for k, v in meta.items() if k not in ("chunk", "chunk_size", "path")}
+
+            final_results.append(
+                {
+                    "name": payload.get("name", ""),
+                    "content": payload.get("content", ""),
+                    "meta_data": cleaned_meta,
+                }
+            )
+
+        print(f"[DEBUG] Final results after dedup: {len(final_results)}", flush=True)
+        return final_results if final_results else None
 
     return knowledge_retriever
 
@@ -98,8 +189,10 @@ def create_agent(project_id: str, knowledge: Knowledge, model_id: str) -> Agent:
 # Custom /seed endpoint - bypasses AgentOS REST API complexity
 # =============================================================================
 
+
 class SeedRequest(BaseModel):
     """Request body for /seed endpoint."""
+
     name: str
     text_content: str
     metadata: Optional[str] = None  # JSON string
@@ -107,6 +200,7 @@ class SeedRequest(BaseModel):
 
 class SeedResponse(BaseModel):
     """Response for /seed endpoint."""
+
     success: bool
     message: str
 
@@ -133,6 +227,7 @@ def create_agent_os(
             meta_data = None
             if request.metadata:
                 import json
+
                 meta_data = json.loads(request.metadata)
 
             await knowledge.add_content_async(
