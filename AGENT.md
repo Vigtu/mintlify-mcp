@@ -93,6 +93,18 @@ bunx mintlify-mcp serve --project my-docs
 
 ## Detailed Documentation
 
+### Business & Product
+
+When understanding the product vision, target audiences, or value proposition:
+
+@docs/business-value-proposition.md
+
+### Enterprise Requirements
+
+When working on enterprise features, compliance, security, or data governance:
+
+@docs/enterprise-requirements.md
+
 ### Mintlify Backend (reverse engineering)
 
 When debugging, modifying, or understanding the Mintlify API integration in `src/backends/mintlify.ts`:
@@ -105,8 +117,8 @@ When planning new features, understanding design decisions, or implementing new 
 
 @docs/architecture-plan.md
 
-### Enterprise Deployment
+### Enterprise Deployment (technical)
 
-For production deployments, self-hosted setups, and company-wide distribution:
+For production deployment architectures, Docker/K8s configs, and infrastructure:
 
 @docs/enterprise-architecture.md
