@@ -17,7 +17,7 @@
     "dev": "bun --watch src/index.ts",
     "test": "bun test",
     "typecheck": "bunx tsc --noEmit",
-    "lint": "biome check --write --unsafe src tests"
+    "lint": "biome check --write --unsafe src tests && cd python && uv run ruff check --fix . && uv run ruff format ."
   },
   "keywords": [
     "mcp",
