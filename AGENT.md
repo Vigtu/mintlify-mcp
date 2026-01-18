@@ -122,3 +122,9 @@ When planning new features, understanding design decisions, or implementing new 
 For production deployment architectures, Docker/K8s configs, and infrastructure:
 
 @docs/enterprise-architecture.md
+
+### Universal Documentation Support
+
+When implementing support for generic documentation sites, the hybrid approach (Option C), or Phase 1/Phase 2 features:
+
+@docs/universal-docs-support.md
