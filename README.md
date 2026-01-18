@@ -14,38 +14,19 @@ An MCP server that lets you query any documentation site powered by [Mintlify](h
 - 💻 Get code examples and explanations without leaving your terminal
 - 🧠 Multi-turn conversations with memory
 - 🔗 Links converted to absolute URLs (WebFetch compatible)
+- 🏠 Local RAG mode for Mintlify documentation sites
 
 ## Quick Start
 
-```bash
-claude mcp add agno-assistant -- bunx mintlify-mcp --project agno-v2
-```
+### Remote Mode (zero setup)
 
-Or add to your settings manually:
-
-```json
-{
-  "mcpServers": {
-    "agno-assistant": {
-      "command": "bunx",
-      "args": ["mintlify-mcp", "-p", "agno-v2"]
-    }
-  }
-}
-```
-
-**Tools available:**
-- `ask` - Ask any question about the docs
-- `clear_history` - Reset conversation
-
-### Multiple Documentation Sites
+For documentation sites with [Mintlify AI Assistant](https://mintlify.com):
 
 ```bash
 claude mcp add agno-assistant -- bunx mintlify-mcp -p agno-v2
-claude mcp add resend-assistant -- bunx mintlify-mcp -p resend
 ```
 
-Or in settings:
+Or add to your MCP settings:
 
 ```json
 {
@@ -53,16 +34,35 @@ Or in settings:
     "agno-assistant": {
       "command": "bunx",
       "args": ["mintlify-mcp", "-p", "agno-v2"]
-    },
-    "resend-assistant": {
-      "command": "bunx",
-      "args": ["mintlify-mcp", "-p", "resend"]
     }
   }
 }
 ```
 
-## Known Project IDs
+### Local RAG Mode (Mintlify sites)
+
+```bash
+# One-time setup (discovers pages, starts server, seeds knowledge base)
+bunx mintlify-mcp setup --url https://docs.example.com --id my-docs
+
+# Add to Claude Code
+claude mcp add my-docs -- bunx mintlify-mcp serve --project my-docs
+```
+
+Or add to your MCP settings:
+
+```json
+{
+  "mcpServers": {
+    "my-docs": {
+      "command": "bunx",
+      "args": ["mintlify-mcp", "serve", "--project", "my-docs"]
+    }
+  }
+}
+```
+
+## Known Project IDs (Remote Mode)
 
 | Documentation | Project ID | Status |
 |--------------|------------|--------|
@@ -82,44 +82,67 @@ Or in settings:
 3. Use the search or AI assistant feature
 4. Look for requests to `leaves.mintlify.com/api/assistant/{project-id}/message`
 
-## CLI Options
+## CLI Commands
 
 ```bash
-bunx mintlify-mcp --help
+# Remote mode (Mintlify API)
+bunx mintlify-mcp -p <project-id>
 
-OPTIONS:
-  -p, --project <id>    Mintlify project ID (required)
-  -n, --name <name>     Custom display name
-  -h, --help            Show help
+# Local RAG mode
+bunx mintlify-mcp setup --url <docs-url> --id <project-id>
+bunx mintlify-mcp serve --project <project-id>
+bunx mintlify-mcp list
+bunx mintlify-mcp stop --project <project-id>
 ```
+
+Run `bunx mintlify-mcp --help` for all options.
+
+## Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `AGNO_HOST` | `127.0.0.1` | RAG server host |
+| `AGNO_PORT` | `7777` | RAG server port |
+| `OPENAI_API_KEY` | - | Required for local RAG mode |
 
 ## Requirements
 
 - [Bun](https://bun.sh) runtime: `curl -fsSL https://bun.sh/install | bash`
+- [Python 3.11+](https://python.org) with [uv](https://docs.astral.sh/uv/) (for local RAG mode)
+- [OpenAI API key](https://platform.openai.com/api-keys) (for local RAG mode)
 
 ## How It Works
 
 ```
 ┌─────────────┐     ┌─────────────┐     ┌─────────────────────┐
-│ Claude Code │────▶│ MCP Server  │────▶│ Mintlify Assistant  │
-│             │◀────│ (this repo) │◀────│ API (RAG Pipeline)  │
+│ Claude Code │────▶│ MCP Server  │────▶│ Remote: Mintlify API│
+│             │◀────│ (this repo) │◀────│ Local: Agno + LanceDB│
 └─────────────┘     └─────────────┘     └─────────────────────┘
 ```
 
-1. You ask a question in Claude Code
-2. MCP server forwards to Mintlify's AI Assistant API
-3. Mintlify searches documentation using RAG
-4. Response streams back to Claude Code
+**Remote Mode**: Proxies to Mintlify's AI Assistant API.
 
-**Context Optimization:** The server extracts only the assistant's text from SSE responses, reducing ~50-100KB raw responses to ~1KB (99% reduction!).
+**Local Mode**: Self-hosted RAG with LanceDB vectors + OpenAI embeddings. Hybrid search (semantic + keyword).
+
+## Project Structure
+
+```
+~/.mintlify-mcp/
+├── projects/
+│   └── <project-id>/
+│       ├── config.yaml      # Project configuration
+│       ├── lancedb/         # Vector database
+│       └── logs/            # Server logs
+└── global.yaml              # Global settings
+```
 
 ## API Documentation
 
-See [AGENT.md](./AGENT.md) for complete reverse-engineered API documentation including:
-- Endpoint details and schemas
-- Request/response formats
-- cURL examples
-- Multi-turn conversation support
+See [AGENT.md](./AGENT.md) for complete documentation including:
+- Architecture details
+- Backend implementations
+- Reverse-engineered Mintlify API docs
+- Enterprise deployment guides
 
 ## License
 
@@ -136,3 +159,4 @@ PRs welcome! To add a new documentation site:
 
 - [Mintlify](https://mintlify.com) ([GitHub](https://github.com/mintlify)) for building amazing documentation tooling
 - [Anthropic](https://anthropic.com) for Claude and the MCP protocol
+- [Agno](https://agno.com) for the RAG framework
