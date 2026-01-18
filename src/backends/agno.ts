@@ -4,6 +4,18 @@ import type { AgnoBackendConfig, AskResult, Backend } from "./types";
 // LOCAL BACKEND - Calls local RAG server API
 // =============================================================================
 
+/** Default host for RAG server */
+const DEFAULT_HOST = Bun.env.AGNO_HOST || "127.0.0.1";
+
+/** Default port for RAG server */
+const DEFAULT_PORT = Number(Bun.env.AGNO_PORT) || 7777;
+
+/** Request timeout in milliseconds */
+const _REQUEST_TIMEOUT_MS = 30_000;
+
+/** Health check timeout in milliseconds */
+const HEALTH_CHECK_TIMEOUT_MS = 2_000;
+
 interface ToolMessage {
   role: string;
   content?: string;
@@ -21,16 +33,22 @@ interface AgentRunResponse {
   messages?: ToolMessage[];
 }
 
+interface AgentInfo {
+  id: string;
+}
+
 export class AgnoBackend implements Backend {
   readonly name = "agno";
   readonly projectId: string;
+  private host: string;
   private port: number;
   private baseUrl: string;
 
   constructor(config: AgnoBackendConfig) {
     this.projectId = config.projectId;
-    this.port = config.port;
-    this.baseUrl = `http://localhost:${this.port}`;
+    this.host = config.host || DEFAULT_HOST;
+    this.port = config.port || DEFAULT_PORT;
+    this.baseUrl = `http://${this.host}:${this.port}`;
   }
 
   async ask(question: string): Promise<AskResult> {
@@ -125,23 +143,61 @@ export class AgnoBackend implements Backend {
   }
 }
 
+/** Build server URL from host and port */
+function buildServerUrl(
+  host: string = DEFAULT_HOST,
+  port: number = DEFAULT_PORT,
+): string {
+  return `http://${host}:${port}`;
+}
+
 /** Create an Agno backend from config */
 export function createAgnoBackend(
   projectId: string,
-  port: number = 7777,
+  port: number = DEFAULT_PORT,
+  host: string = DEFAULT_HOST,
 ): AgnoBackend {
-  return new AgnoBackend({ type: "agno", projectId, port });
+  return new AgnoBackend({ type: "agno", projectId, host, port });
 }
 
-/** Check if server is running on a specific port */
-export async function isServerRunning(port: number = 7777): Promise<boolean> {
+/** Check if server is running */
+export async function isServerRunning(
+  port: number = DEFAULT_PORT,
+  host: string = DEFAULT_HOST,
+): Promise<boolean> {
   try {
-    const response = await fetch(`http://localhost:${port}/agents`, {
+    const url = buildServerUrl(host, port);
+    const response = await fetch(`${url}/agents`, {
       method: "GET",
-      signal: AbortSignal.timeout(2000),
+      signal: AbortSignal.timeout(HEALTH_CHECK_TIMEOUT_MS),
     });
     return response.ok;
   } catch {
     return false;
   }
 }
+
+/** Check if a specific agent exists on the server */
+export async function isAgentRunning(
+  projectId: string,
+  port: number = DEFAULT_PORT,
+  host: string = DEFAULT_HOST,
+): Promise<boolean> {
+  try {
+    const url = buildServerUrl(host, port);
+    const response = await fetch(`${url}/agents`, {
+      method: "GET",
+      signal: AbortSignal.timeout(HEALTH_CHECK_TIMEOUT_MS),
+    });
+    if (!response.ok) return false;
+
+    const agents = (await response.json()) as AgentInfo[];
+    const agentName = `${projectId}-assistant`;
+    return agents.some((a) => a.id === agentName);
+  } catch {
+    return false;
+  }
+}
+
+/** Export constants for use in other modules */
+export { DEFAULT_HOST, DEFAULT_PORT };

@@ -37,5 +37,6 @@ export interface MintlifyBackendConfig extends BackendConfig {
 
 export interface AgnoBackendConfig extends BackendConfig {
   type: "agno";
-  port: number;
+  host?: string;
+  port?: number;
 }

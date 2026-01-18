@@ -1,3 +1,4 @@
+import { DEFAULT_HOST, DEFAULT_PORT } from "../backends/agno";
 import { projectExists, saveProjectConfig } from "../config/loader";
 import { ensureDirExists, paths } from "../config/paths";
 import {
@@ -13,17 +14,29 @@ import { stopAllServers } from "./stop";
 // SETUP COMMAND - One-command setup for local RAG assistant
 // =============================================================================
 
+/** Server startup timeout for setup (longer due to dependency loading) */
+const SETUP_SERVER_TIMEOUT_MS = 30_000;
+
 export interface SetupOptions {
   url: string;
   id: string;
   name?: string;
   prefix?: string;
+  host?: string;
   port?: number;
   verbose?: boolean;
 }
 
 export async function setupCommand(options: SetupOptions): Promise<void> {
-  const { url, id, name, prefix, port = 7777, verbose = false } = options;
+  const {
+    url,
+    id,
+    name,
+    prefix,
+    host = DEFAULT_HOST,
+    port = DEFAULT_PORT,
+    verbose = false,
+  } = options;
 
   console.log("\n🚀 Setting up documentation assistant...\n");
 
@@ -101,6 +114,7 @@ export async function setupCommand(options: SetupOptions): Promise<void> {
     name: name || extractSiteName(normalizedUrl),
     prefix,
     backend: "agno",
+    agnoHost: host,
     agnoPort: port,
   });
 
@@ -127,14 +141,14 @@ export async function setupCommand(options: SetupOptions): Promise<void> {
     process.exit(1);
   }
 
-  // Wait for server to be ready (30s timeout for dependency loading)
-  const ready = await waitForServer(port, 30000);
+  // Wait for server to be ready (longer timeout for dependency loading)
+  const ready = await waitForServer(port, SETUP_SERVER_TIMEOUT_MS, host);
   if (!ready) {
     console.error("\n❌ RAG server did not become ready in time.");
     process.exit(1);
   }
 
-  console.log(`   Server running on http://localhost:${port}`);
+  console.log(`   Server running on http://${host}:${port}`);
 
   // ==========================================================================
   // STEP 5: Seed documentation
@@ -144,7 +158,7 @@ export async function setupCommand(options: SetupOptions): Promise<void> {
     `\n📚 Seeding ${discovery.pages.length} pages to knowledge base...`,
   );
 
-  const seedResult = await seedDocs(id, discovery.pages, port, verbose);
+  const seedResult = await seedDocs(id, discovery.pages, port, host, verbose);
 
   console.log(`   Success: ${seedResult.success}`);
   if (seedResult.errors > 0) {
