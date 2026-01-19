@@ -19,15 +19,16 @@ bun test tests/mintlify-api.test.ts
 
 ## Architecture
 
-### Two Operation Modes
+### Three Operation Modes
 
 1. **Mintlify API Mode** (`-p <project-id>`) - Proxies Mintlify's AI Assistant API for sites with built-in assistants
-2. **Local RAG Mode** (`setup` + `serve`) - Self-hosted RAG using Agno for any documentation site
+2. **Embedded Mode** (`setup` + `serve`, default) - Pure TypeScript RAG with LanceDB, no Python needed
+3. **Agno Mode** (`setup --backend agno`) - Python RAG server for enterprise/advanced use cases
 
 ### Core Flow
 
 ```
-CLI (src/index.ts) → Backend (mintlify|agno) → MCP Server (src/server.ts)
+CLI (src/index.ts) → Backend (mintlify|embedded|agno) → MCP Server (src/server.ts)
                           ↓
                    Backend Interface
                    - ask(question): AskResult
@@ -39,7 +40,8 @@ CLI (src/index.ts) → Backend (mintlify|agno) → MCP Server (src/server.ts)
 
 | Module | Purpose |
 |--------|---------|
-| `src/backends/` | Backend implementations (Mintlify API, Agno local) |
+| `src/backends/` | Backend implementations (Mintlify API, Embedded, Agno) |
+| `src/backends/embedded/` | Pure TypeScript RAG with LanceDB + AI SDK |
 | `src/cli/` | CLI commands (setup, serve, start, stop, seed, list) |
 | `src/config/` | Project config YAML storage in `~/.mintlify-mcp/` |
 | `src/discovery/` | Sitemap/mint.json parsing for page discovery |
@@ -79,10 +81,23 @@ interface ClearHistoryTool {
 # Mintlify API mode (for sites with built-in AI Assistant)
 bunx mintlify-mcp -p agno-v2
 
-# Local RAG mode (for any documentation site)
+# Embedded mode (default, requires OPENAI_API_KEY)
 bunx mintlify-mcp setup --url https://docs.example.com --id my-docs
 bunx mintlify-mcp serve --project my-docs
+
+# Local mode with Ollama (no API key needed)
+bunx mintlify-mcp setup --url https://docs.example.com --id my-docs --local
+
+# Legacy Agno mode (Python server)
+bunx mintlify-mcp setup --url https://docs.example.com --id my-docs --backend agno
 ```
+
+## Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `OPENAI_API_KEY` | Yes* | OpenAI API key (*not needed with `--local` flag) |
+| `MINTLIFY_DATA_DIR` | No | Override data directory (default: `~/.mintlify-mcp`) |
 
 ## Tech Stack
 
