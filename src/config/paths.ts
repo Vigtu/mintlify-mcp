@@ -5,7 +5,31 @@ import { join } from "node:path";
 // DATA DIRECTORY PATHS - Using Bun's native node:fs implementation
 // =============================================================================
 
-const HOME = process.env.HOME || Bun.env.HOME || "/tmp";
+// Get home directory with safe fallback
+function getHomeDir(): string {
+  const home = process.env.HOME || Bun.env.HOME;
+  if (home) return home;
+
+  // Platform-specific fallbacks
+  if (process.platform === "win32") {
+    return (
+      process.env.USERPROFILE || process.env.APPDATA || "C:\\Users\\Default"
+    );
+  }
+
+  // Unix: try to get from /etc/passwd or use a safe fallback
+  const user = process.env.USER || process.env.LOGNAME;
+  if (user) {
+    return `/home/${user}`;
+  }
+
+  // Last resort - still better than /tmp which gets cleared
+  throw new Error(
+    "Cannot determine home directory. Set HOME or MINTLIFY_DATA_DIR environment variable.",
+  );
+}
+
+const HOME = getHomeDir();
 const DATA_DIR = process.env.MINTLIFY_DATA_DIR || join(HOME, ".mintlify-mcp");
 
 export const paths = {

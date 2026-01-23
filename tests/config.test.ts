@@ -1,17 +1,21 @@
-import { describe, test, expect, beforeAll, afterAll } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
-import { createDefaultProjectConfig, DEFAULT_AGNO_CONFIG } from "../src/config/schema";
 import { createAgnoBackend } from "../src/backends/agno";
 import {
-  loadProjectConfig,
-  saveProjectConfig,
-  projectExists,
-  listProjects,
   deleteProject,
+  listProjects,
   loadGlobalConfig,
+  loadProjectConfig,
+  projectExists,
+  saveProjectConfig,
   updateProjectConfig,
 } from "../src/config/loader";
+import {
+  createDefaultProjectConfig,
+  DEFAULT_AGNO_CONFIG,
+  DEFAULT_EMBEDDED_CONFIG,
+} from "../src/config/schema";
 
 // =============================================================================
 // TEST SETUP
@@ -33,34 +37,67 @@ afterAll(async () => {
 // =============================================================================
 
 describe("createDefaultProjectConfig", () => {
-  test("creates agno config with defaults", () => {
-    const config = createDefaultProjectConfig("test-id", "https://docs.example.com");
+  test("creates embedded config with defaults (new default)", () => {
+    const config = createDefaultProjectConfig(
+      "test-id",
+      "https://docs.example.com",
+    );
 
     expect(config.id).toBe("test-id");
     expect(config.name).toBe("test-id");
-    expect(config.backend).toBe("agno");
-    expect(config.agno?.model).toBe(DEFAULT_AGNO_CONFIG.model);
+    expect(config.backend).toBe("embedded");
+    expect(config.embedded?.llm_provider).toBe(
+      DEFAULT_EMBEDDED_CONFIG.llm_provider,
+    );
+    expect(config.embedded?.llm_model).toBe(DEFAULT_EMBEDDED_CONFIG.llm_model);
     expect(config.seeding?.status).toBe("pending");
   });
 
-  test("custom host/port override defaults", () => {
-    const config = createDefaultProjectConfig("test-id", "https://docs.example.com", {
-      agnoHost: "192.168.1.100",
-      agnoPort: 8080,
-    });
+  test("agno backend with custom host/port", () => {
+    const config = createDefaultProjectConfig(
+      "test-id",
+      "https://docs.example.com",
+      {
+        backend: "agno",
+        agnoHost: "192.168.1.100",
+        agnoPort: 8080,
+      },
+    );
 
+    expect(config.backend).toBe("agno");
     expect(config.agno?.host).toBe("192.168.1.100");
     expect(config.agno?.port).toBe(8080);
+    expect(config.agno?.model).toBe(DEFAULT_AGNO_CONFIG.model);
   });
 
   test("mintlify backend extracts domain from URL", () => {
-    const config = createDefaultProjectConfig("test-id", "https://docs.mysite.com/api", {
-      backend: "mintlify",
-    });
+    const config = createDefaultProjectConfig(
+      "test-id",
+      "https://docs.mysite.com/api",
+      {
+        backend: "mintlify",
+      },
+    );
 
     expect(config.backend).toBe("mintlify");
     expect(config.mintlify?.domain).toBe("docs.mysite.com");
     expect(config.mintlify?.project_id).toBe("test-id");
+  });
+
+  test("embedded local mode uses ollama defaults", () => {
+    const config = createDefaultProjectConfig(
+      "test-id",
+      "https://docs.example.com",
+      {
+        backend: "embedded",
+        local: true,
+      },
+    );
+
+    expect(config.backend).toBe("embedded");
+    expect(config.embedded?.local).toBe(true);
+    expect(config.embedded?.llm_provider).toBe("ollama");
+    expect(config.embedded?.embedding_provider).toBe("ollama");
   });
 });
 
@@ -72,17 +109,22 @@ describe("Project Loader", () => {
   const testProjectId = "test-loader-project";
 
   test("save and load roundtrip preserves data", async () => {
-    const config = createDefaultProjectConfig(testProjectId, "https://example.com", {
-      name: "Test Project",
-      agnoPort: 9999,
-    });
+    const config = createDefaultProjectConfig(
+      testProjectId,
+      "https://example.com",
+      {
+        name: "Test Project",
+        backend: "embedded",
+      },
+    );
     await saveProjectConfig(config);
 
     const loaded = await loadProjectConfig(testProjectId);
 
     expect(loaded?.id).toBe(testProjectId);
     expect(loaded?.name).toBe("Test Project");
-    expect(loaded?.agno?.port).toBe(9999);
+    expect(loaded?.backend).toBe("embedded");
+    expect(loaded?.embedded?.llm_provider).toBe("openai");
   });
 
   test("projectExists detects saved projects", async () => {
@@ -104,7 +146,9 @@ describe("Project Loader", () => {
 
   test("deleteProject removes project", async () => {
     const deleteTestId = "test-delete-project";
-    await saveProjectConfig(createDefaultProjectConfig(deleteTestId, "https://example.com"));
+    await saveProjectConfig(
+      createDefaultProjectConfig(deleteTestId, "https://example.com"),
+    );
     expect(await projectExists(deleteTestId)).toBe(true);
 
     await deleteProject(deleteTestId);
@@ -113,7 +157,7 @@ describe("Project Loader", () => {
 
   test("loadGlobalConfig returns defaults when no file", async () => {
     const config = await loadGlobalConfig();
-    expect(config.default_backend).toBe("agno");
+    expect(config.default_backend).toBe("embedded");
   });
 });
 
@@ -127,7 +171,7 @@ describe("createAgnoBackend", () => {
 
     // Business logic: agent name = ${projectId}-assistant
     expect(backend.getAgentEndpoint()).toBe(
-      "http://localhost:7777/agents/my-docs-assistant/runs"
+      "http://localhost:7777/agents/my-docs-assistant/runs",
     );
   });
 });

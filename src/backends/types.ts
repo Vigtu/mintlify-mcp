@@ -26,7 +26,7 @@ export interface Backend {
 }
 
 export interface BackendConfig {
-  type: "mintlify" | "agno";
+  type: "mintlify" | "agno" | "embedded";
   projectId: string;
 }
 
@@ -39,4 +39,20 @@ export interface AgnoBackendConfig extends BackendConfig {
   type: "agno";
   host?: string;
   port?: number;
+}
+
+export interface EmbeddedBackendConfig extends BackendConfig {
+  type: "embedded";
+  /** Use local providers (Ollama) instead of cloud (OpenAI) */
+  local?: boolean;
+  /** LLM provider: 'openai' or 'ollama' */
+  llmProvider?: "openai" | "ollama";
+  /** LLM model name */
+  llmModel?: string;
+  /** Embedding provider: 'openai' or 'ollama' */
+  embeddingProvider?: "openai" | "ollama";
+  /** Embedding model name */
+  embeddingModel?: string;
+  /** Ollama base URL (default: http://localhost:11434) */
+  ollamaBaseUrl?: string;
 }

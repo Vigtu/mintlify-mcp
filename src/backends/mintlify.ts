@@ -1,3 +1,4 @@
+import type { BackendFactory } from "./registry";
 import type { AskResult, Backend, MintlifyBackendConfig } from "./types";
 
 // =============================================================================
@@ -23,7 +24,9 @@ interface ConversationState {
   threadId?: string;
 }
 
-const MINTLIFY_API_BASE = "https://leaves.mintlify.com/api/assistant";
+// Allow override for proxies or alternative endpoints
+const MINTLIFY_API_BASE =
+  process.env.MINTLIFY_API_BASE || "https://leaves.mintlify.com/api/assistant";
 
 export class MintlifyBackend implements Backend {
   readonly name = "mintlify";
@@ -180,3 +183,21 @@ export function createMintlifyBackend(
 ): MintlifyBackend {
   return new MintlifyBackend({ type: "mintlify", projectId, domain });
 }
+
+// =============================================================================
+// BACKEND FACTORY - For registry integration
+// =============================================================================
+
+export interface MintlifyBackendOptions {
+  projectId: string;
+  domain: string;
+}
+
+export const backendFactory: BackendFactory<MintlifyBackendOptions> = {
+  displayName: "Mintlify API",
+  requiredDependencies: [],
+
+  async create(options: MintlifyBackendOptions): Promise<Backend> {
+    return createMintlifyBackend(options.projectId, options.domain);
+  },
+};

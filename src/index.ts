@@ -40,7 +40,7 @@ QUICK START:
 
   This will:
   1. Discover all documentation pages
-  2. Start local RAG server
+  2. Create embedded vector store (no Python needed!)
   3. Seed knowledge base
   4. Show Claude Code configuration
 
@@ -48,21 +48,22 @@ COMMANDS:
   setup     Set up a new documentation assistant (recommended)
   serve     Start MCP server for Claude Code
   list      List all configured projects
-  stop      Stop background RAG server
+  stop      Stop background RAG server (Agno mode only)
 
 SETUP OPTIONS:
   --url <url>       Documentation site URL (required)
   --id <id>         Project ID (required)
   --name <name>     Display name (optional)
   --prefix <path>   Only include pages under this path (optional)
-  --port <port>     RAG server port (default: 7777)
+  --backend <type>  Backend: embedded (default), agno (Python)
+
+ADVANCED OPTIONS:
+  --llm-model <model>       LLM model name (default: gpt-4o-mini)
+  --embedding-model <model> Embedding model name (default: text-embedding-3-small)
 
 EXAMPLES:
-  # Set up assistant for any documentation site
+  # Set up assistant for any documentation site (requires OPENAI_API_KEY)
   ${CLI_NAME} setup --url https://docs.example.com --id my-docs
-
-  # Only include specific section
-  ${CLI_NAME} setup --url https://docs.example.com --id my-docs --prefix /guides
 
   # After setup, add to Claude Code:
   claude mcp add my-docs -- bunx ${CLI_NAME} serve --project my-docs
@@ -74,7 +75,7 @@ MINTLIFY API (for sites with built-in AI Assistant):
 
 MANAGEMENT:
   ${CLI_NAME} list                     List all projects
-  ${CLI_NAME} stop --project <id>      Stop RAG server
+  ${CLI_NAME} stop --project <id>      Stop RAG server (Agno mode)
   ${CLI_NAME} stop --all               Stop all servers
 `);
 }
@@ -99,11 +100,17 @@ function parseArgs(args: string[]): ParsedArgs {
       result.flags.force = true;
     } else if (arg === "--all") {
       result.flags.all = true;
+    } else if (arg === "--local") {
+      result.flags.local = true;
+    } else if (arg === "--embedded") {
+      result.flags.backend = "embedded";
     } else if (arg.startsWith("--")) {
       const key = arg.slice(2);
       const next = args[i + 1];
       if (next && !next.startsWith("-")) {
-        result.flags[key] = next;
+        // Convert kebab-case to camelCase for consistency
+        const camelKey = key.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+        result.flags[camelKey] = next;
         i++;
       } else {
         result.flags[key] = true;
@@ -177,9 +184,21 @@ async function main(): Promise<void> {
         id: parsed.flags.id as string,
         name: parsed.flags.name as string | undefined,
         prefix: parsed.flags.prefix as string | undefined,
+        backend: (parsed.flags.backend as "agno" | "embedded") || "embedded",
+        local: Boolean(parsed.flags.local),
         port: parsed.flags.port
           ? parseInt(parsed.flags.port as string, 10)
           : undefined,
+        llmProvider: parsed.flags.llmProvider as
+          | "openai"
+          | "ollama"
+          | undefined,
+        llmModel: parsed.flags.llmModel as string | undefined,
+        embeddingProvider: parsed.flags.embeddingProvider as
+          | "openai"
+          | "ollama"
+          | undefined,
+        embeddingModel: parsed.flags.embeddingModel as string | undefined,
         verbose: Boolean(parsed.flags.verbose),
       });
       break;

@@ -1,3 +1,4 @@
+import type { BackendFactory } from "./registry";
 import type { AgnoBackendConfig, AskResult, Backend } from "./types";
 
 // =============================================================================
@@ -201,3 +202,26 @@ export async function isAgentRunning(
 
 /** Export constants for use in other modules */
 export { DEFAULT_HOST, DEFAULT_PORT };
+
+// =============================================================================
+// BACKEND FACTORY - For registry integration
+// =============================================================================
+
+export interface AgnoBackendOptions {
+  projectId: string;
+  host?: string;
+  port?: number;
+}
+
+export const backendFactory: BackendFactory<AgnoBackendOptions> = {
+  displayName: "Agno (Python RAG)",
+  requiredDependencies: [], // Python dependencies managed separately
+
+  async create(options: AgnoBackendOptions): Promise<Backend> {
+    return createAgnoBackend(
+      options.projectId,
+      options.port ?? DEFAULT_PORT,
+      options.host ?? DEFAULT_HOST,
+    );
+  },
+};
