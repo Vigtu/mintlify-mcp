@@ -1,6 +1,7 @@
 import { DEFAULT_HOST, DEFAULT_PORT, isServerRunning } from "../backends/agno";
 import { loadProjectConfig } from "../config/loader";
 import { ensureDirExists, fileExists, paths, remove } from "../config/paths";
+import { validatePortOrThrow } from "../security";
 
 // =============================================================================
 // START - Start RAG server for a project
@@ -120,18 +121,35 @@ export async function stopServer(
   port: number = DEFAULT_PORT,
 ): Promise<boolean> {
   try {
-    // Use fuser to kill process on port (Linux)
-    const result = Bun.spawnSync(["fuser", "-k", `${port}/tcp`], {
+    // Validate port to prevent command injection
+    const validatedPort = validatePortOrThrow(port, DEFAULT_PORT);
+
+    // Use fuser to kill process on port (Linux) - safe since port is validated integer
+    const result = Bun.spawnSync(["fuser", "-k", `${validatedPort}/tcp`], {
       stderr: "pipe",
     });
 
     // If fuser fails, try lsof + kill approach (macOS/Linux fallback)
+    // Using separate arguments to avoid shell injection
     if (result.exitCode !== 0) {
+      // Get PID using lsof
       const lsofResult = Bun.spawnSync(
-        ["sh", "-c", `lsof -ti:${port} | xargs -r kill -9 2>/dev/null || true`],
-        { stderr: "pipe" },
+        ["lsof", "-ti", `:${validatedPort}`],
+        { stdout: "pipe", stderr: "pipe" },
       );
-      return lsofResult.exitCode === 0;
+
+      if (lsofResult.exitCode === 0 && lsofResult.stdout) {
+        const pids = lsofResult.stdout.toString().trim().split("\n").filter(Boolean);
+        for (const pid of pids) {
+          // Validate PID is a number before killing
+          const pidNum = parseInt(pid, 10);
+          if (Number.isInteger(pidNum) && pidNum > 0) {
+            Bun.spawnSync(["kill", "-9", String(pidNum)], { stderr: "pipe" });
+          }
+        }
+        return true;
+      }
+      return false;
     }
 
     return true;

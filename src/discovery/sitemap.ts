@@ -1,4 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
+import { safeFetch } from "../security";
 
 // =============================================================================
 // SITEMAP.XML PARSER - Using Bun's native fetch
@@ -26,12 +27,16 @@ export async function parseSitemap(baseUrl: string): Promise<DiscoveredPage[]> {
   const sitemapUrl = `${baseUrl.replace(/\/$/, "")}/sitemap.xml`;
 
   try {
-    const response = await fetch(sitemapUrl, {
-      headers: {
-        "User-Agent": "docmole/1.0",
-        Accept: "application/xml, text/xml, */*",
+    const response = await safeFetch(
+      sitemapUrl,
+      {
+        headers: {
+          "User-Agent": "docmole/1.0",
+          Accept: "application/xml, text/xml, */*",
+        },
       },
-    });
+      "sitemap URL",
+    );
 
     if (!response.ok) {
       console.error(`Sitemap fetch failed: ${response.status}`);

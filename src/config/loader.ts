@@ -1,4 +1,5 @@
 import YAML from "yaml";
+import { validateProjectId } from "../security";
 import { ensureDirExists, fileExists, listDir, paths, remove } from "./paths";
 import {
   DEFAULT_GLOBAL_CONFIG,
@@ -14,7 +15,14 @@ import {
 export async function loadProjectConfig(
   projectId: string,
 ): Promise<ProjectConfig | null> {
-  const configPath = paths.projectConfig(projectId);
+  // Validate project ID to prevent path traversal
+  const validation = validateProjectId(projectId);
+  if (!validation.valid) {
+    console.error(`Invalid project ID: ${validation.error}`);
+    return null;
+  }
+
+  const configPath = paths.projectConfig(validation.sanitized!);
 
   if (!(await fileExists(configPath))) {
     return null;
@@ -80,12 +88,22 @@ export async function getAllProjects(): Promise<ProjectConfig[]> {
 
 /** Delete a project */
 export async function deleteProject(projectId: string): Promise<void> {
-  await remove(paths.project(projectId));
+  // Validate project ID to prevent path traversal
+  const validation = validateProjectId(projectId);
+  if (!validation.valid) {
+    throw new Error(`Invalid project ID: ${validation.error}`);
+  }
+  await remove(paths.project(validation.sanitized!));
 }
 
 /** Check if project exists */
 export async function projectExists(projectId: string): Promise<boolean> {
-  return fileExists(paths.projectConfig(projectId));
+  // Validate project ID to prevent path traversal
+  const validation = validateProjectId(projectId);
+  if (!validation.valid) {
+    return false;
+  }
+  return fileExists(paths.projectConfig(validation.sanitized!));
 }
 
 /** Update project config partially */

@@ -66,10 +66,8 @@ export async function ensureOpenAIApiKey(): Promise<boolean> {
   process.env.OPENAI_API_KEY = apiKey;
 
   console.log("\n   ✓ API key set for this session.");
-  console.log("   💡 Tip: Add to your shell profile for persistence:");
-  console.log(
-    `      export OPENAI_API_KEY=${apiKey.slice(0, 7)}...${apiKey.slice(-4)}\n`,
-  );
+  console.log("   💡 Tip: Add OPENAI_API_KEY to your shell profile for persistence.");
+  console.log("      See: https://platform.openai.com/docs/quickstart\n");
 
   return true;
 }

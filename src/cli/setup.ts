@@ -6,6 +6,10 @@ import {
   type ProjectConfig,
 } from "../config/schema";
 import { discoverPages, isMintlifySite } from "../discovery";
+import {
+  validateProjectIdOrThrow,
+  validateUrlOrThrow,
+} from "../security";
 import { ensureOpenAIApiKey } from "./prompt";
 import { seedDocs } from "./seed";
 import { startServer, waitForServer } from "./start";
@@ -58,32 +62,33 @@ export async function setupCommand(options: SetupOptions): Promise<void> {
   console.log("\n🚀 Setting up documentation assistant...\n");
 
   // ==========================================================================
-  // STEP 1: Validate inputs
+  // STEP 1: Validate inputs (using centralized security module)
   // ==========================================================================
 
-  // Validate project ID
-  if (!/^[a-z0-9-]+$/.test(id)) {
-    console.error(
-      "❌ Project ID must contain only lowercase letters, numbers, and hyphens.",
-    );
+  // Validate project ID (prevents path traversal)
+  let validatedId: string;
+  try {
+    validatedId = validateProjectIdOrThrow(id);
+  } catch (error) {
+    console.error(`❌ ${error instanceof Error ? error.message : "Invalid project ID"}`);
     process.exit(1);
   }
 
   // Check if project already exists
-  if (await projectExists(id)) {
-    console.error(`❌ Project "${id}" already exists.`);
+  if (await projectExists(validatedId)) {
+    console.error(`❌ Project "${validatedId}" already exists.`);
     console.error("   Use a different ID or delete the existing project.");
     process.exit(1);
   }
 
-  // Validate URL
+  // Validate URL (prevents SSRF)
   let normalizedUrl: string;
   try {
-    const parsed = new URL(url);
-    normalizedUrl =
-      `${parsed.protocol}//${parsed.host}${parsed.pathname}`.replace(/\/$/, "");
-  } catch {
-    console.error(`❌ Invalid URL: ${url}`);
+    normalizedUrl = validateUrlOrThrow(url, "documentation URL");
+    // Remove trailing slash for consistency
+    normalizedUrl = normalizedUrl.replace(/\/$/, "");
+  } catch (error) {
+    console.error(`❌ ${error instanceof Error ? error.message : "Invalid URL"}`);
     process.exit(1);
   }
 
@@ -141,9 +146,9 @@ export async function setupCommand(options: SetupOptions): Promise<void> {
   // STEP 3: Create project config
   // ==========================================================================
 
-  console.log(`\n⚙️  Creating project "${id}"...`);
+  console.log(`\n⚙️  Creating project "${validatedId}"...`);
 
-  const config: ProjectConfig = createDefaultProjectConfig(id, normalizedUrl, {
+  const config: ProjectConfig = createDefaultProjectConfig(validatedId, normalizedUrl, {
     name: name || extractSiteName(normalizedUrl),
     prefix,
     backend,
@@ -160,10 +165,10 @@ export async function setupCommand(options: SetupOptions): Promise<void> {
 
   config.source.discovery = discovery.method;
 
-  await ensureDirExists(paths.project(id));
+  await ensureDirExists(paths.project(validatedId));
   await saveProjectConfig(config);
 
-  console.log(`   Config saved to: ${paths.projectConfig(id)}`);
+  console.log(`   Config saved to: ${paths.projectConfig(validatedId)}`);
 
   // ==========================================================================
   // STEP 4: Seed documentation (backend-specific)
@@ -187,15 +192,15 @@ export async function setupCommand(options: SetupOptions): Promise<void> {
 
   console.log("\n📋 Quick setup (Claude Code):\n");
   console.log(
-    `   claude mcp add ${id} -- bunx ${cliName} serve --project ${id}`,
+    `   claude mcp add ${validatedId} -- bunx ${cliName} serve --project ${validatedId}`,
   );
 
   console.log("\n💡 Or add manually to your MCP client settings:\n");
   console.log(`   {
      "mcpServers": {
-       "${id}": {
+       "${validatedId}": {
          "command": "bunx",
-         "args": ["${cliName}", "serve", "--project", "${id}"]
+         "args": ["${cliName}", "serve", "--project", "${validatedId}"]
        }
      }
    }`);

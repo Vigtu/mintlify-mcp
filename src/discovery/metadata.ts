@@ -2,6 +2,8 @@
 // METADATA EXTRACTION - Extract title and description from markdown
 // =============================================================================
 
+import { safeFetch } from "../security";
+
 export interface PageMetadata {
   title: string;
   description: string;
@@ -69,12 +71,16 @@ export async function fetchWithMetadata(
   path: string,
 ): Promise<{ content: string; metadata: PageMetadata } | null> {
   try {
-    const response = await fetch(url, {
-      headers: {
-        "User-Agent": "docmole/1.0",
-        Accept: "text/markdown, text/plain, */*",
+    const response = await safeFetch(
+      url,
+      {
+        headers: {
+          "User-Agent": "docmole/1.0",
+          Accept: "text/markdown, text/plain, */*",
+        },
       },
-    });
+      "documentation page",
+    );
 
     if (!response.ok) {
       return null;
