@@ -1,7 +1,7 @@
 {
   "name": "docmole",
-  "version": "0.3.0",
-  "description": "AI documentation assistant that digs through any docs site - MCP server for Claude Code",
+  "version": "0.4.0",
+  "description": "Dig through any documentation with AI - MCP server for Claude, Cursor, and other AI assistants",
   "main": "src/index.ts",
   "type": "module",
   "bin": {
@@ -20,18 +20,20 @@
     "lint": "biome check --write --unsafe src tests && cd python && uv run ruff check --fix . && uv run ruff format ."
   },
   "keywords": [
+    "docmole",
     "mcp",
     "documentation",
     "docs",
     "rag",
     "claude",
-    "claude-code",
+    "cursor",
     "ai",
     "assistant",
     "model-context-protocol",
     "anthropic",
     "bun",
-    "lancedb"
+    "lancedb",
+    "vector-search"
   ],
   "author": "Vigtu",
   "license": "MIT",
