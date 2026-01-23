@@ -149,22 +149,22 @@ export async function createCommand(options: CreateOptions): Promise<void> {
 
   if (backend === "agno") {
     console.log(`  1. Start server:`);
-    console.log(`     mintlify-mcp start --project ${id}`);
+    console.log(`     docmole start --project ${id}`);
     console.log();
     console.log(`  2. Seed documentation:`);
-    console.log(`     mintlify-mcp seed --project ${id}`);
+    console.log(`     docmole seed --project ${id}`);
     console.log();
     console.log(`  3. Start MCP server:`);
-    console.log(`     mintlify-mcp serve --project ${id}`);
+    console.log(`     docmole serve --project ${id}`);
     console.log();
     console.log(`  Or configure Claude Code:`);
     console.log(
-      `     claude mcp add ${id} -- bunx mintlify-mcp serve --project ${id}`,
+      `     claude mcp add ${id} -- bunx docmole serve --project ${id}`,
     );
   } else {
     console.log(`  Configure Claude Code:`);
     console.log(
-      `     claude mcp add ${id} -- bunx mintlify-mcp serve --project ${id}`,
+      `     claude mcp add ${id} -- bunx docmole serve --project ${id}`,
     );
   }
 }
@@ -264,7 +264,7 @@ async function downloadPage(
   try {
     const response = await fetch(mdUrl, {
       headers: {
-        "User-Agent": "mintlify-mcp/1.0",
+        "User-Agent": "docmole/1.0",
         Accept: "text/markdown, text/plain, */*",
       },
     });

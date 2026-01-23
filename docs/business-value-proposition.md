@@ -1,6 +1,6 @@
 # Business Value Proposition
 
-Product value proposition and target audiences for mintlify-mcp.
+Product value proposition and target audiences for docmole.
 
 ## Problem Statement
 
@@ -41,7 +41,7 @@ Developer in terminal:
 
 ```bash
 # One-time setup
-claude mcp add agno-docs -- bunx mintlify-mcp -p agno-v2
+claude mcp add agno-docs -- bunx docmole -p agno-v2
 
 # Usage: just ask in Claude Code
 "How do I create an agent with memory in Agno?"
@@ -69,10 +69,10 @@ claude mcp add agno-docs -- bunx mintlify-mcp -p agno-v2
 
 ```bash
 # Setup (once)
-bunx mintlify-mcp setup --url https://docs.yourproduct.com --id your-docs
+bunx docmole setup --url https://docs.yourproduct.com --id your-docs
 
 # Serve (in Claude Code config)
-bunx mintlify-mcp serve --project your-docs
+bunx docmole serve --project your-docs
 ```
 
 **Value**:

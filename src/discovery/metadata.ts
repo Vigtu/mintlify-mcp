@@ -71,7 +71,7 @@ export async function fetchWithMetadata(
   try {
     const response = await fetch(url, {
       headers: {
-        "User-Agent": "mintlify-mcp/1.0",
+        "User-Agent": "docmole/1.0",
         Accept: "text/markdown, text/plain, */*",
       },
     });

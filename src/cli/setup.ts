@@ -179,7 +179,7 @@ export async function setupCommand(options: SetupOptions): Promise<void> {
   // DONE - Show next steps
   // ==========================================================================
 
-  const cliName = "mintlify-mcp"; // TODO: will be renamed
+  const cliName = "docmole";
 
   console.log(`\n${"=".repeat(60)}`);
   console.log("✅ Setup complete!");

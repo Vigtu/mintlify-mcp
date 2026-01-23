@@ -44,7 +44,7 @@ CLI (src/index.ts) → Backend (mintlify|embedded|agno) → MCP Server (src/serv
 | `src/backends/registry.ts` | Dynamic backend loading with graceful fallbacks |
 | `src/backends/embedded/` | Pure TypeScript RAG with LanceDB + AI SDK |
 | `src/cli/` | CLI commands (setup, serve, start, stop, seed, list) |
-| `src/config/` | Project config YAML storage in `~/.mintlify-mcp/` |
+| `src/config/` | Project config YAML storage in `~/.docmole/` |
 | `src/config/schema.ts` | Backend types (`BACKEND_TYPES`) and project config schema |
 | `src/discovery/` | Sitemap/mint.json parsing for page discovery |
 | `src/server.ts` | MCP server exposing `ask` and `clear_history` tools |
@@ -60,7 +60,7 @@ Convention: module path = `./${type}` (no manual mapping needed).
 
 ### Config Storage
 
-Projects stored at `~/.mintlify-mcp/projects/<id>/config.yaml`. Schema in `src/config/schema.ts`.
+Projects stored at `~/.docmole/projects/<id>/config.yaml`. Schema in `src/config/schema.ts`.
 
 ## MCP Tools
 
@@ -83,17 +83,17 @@ interface ClearHistoryTool {
 
 ```bash
 # Mintlify API mode (for sites with built-in AI Assistant)
-bunx mintlify-mcp -p agno-v2
+bunx docmole -p agno-v2
 
 # Embedded mode (default, requires OPENAI_API_KEY)
-bunx mintlify-mcp setup --url https://docs.example.com --id my-docs
-bunx mintlify-mcp serve --project my-docs
+bunx docmole setup --url https://docs.example.com --id my-docs
+bunx docmole serve --project my-docs
 
 # Local mode with Ollama (no API key needed)
-bunx mintlify-mcp setup --url https://docs.example.com --id my-docs --local
+bunx docmole setup --url https://docs.example.com --id my-docs --local
 
 # Legacy Agno mode (Python server)
-bunx mintlify-mcp setup --url https://docs.example.com --id my-docs --backend agno
+bunx docmole setup --url https://docs.example.com --id my-docs --backend agno
 ```
 
 ## Environment Variables
@@ -101,7 +101,7 @@ bunx mintlify-mcp setup --url https://docs.example.com --id my-docs --backend ag
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `OPENAI_API_KEY` | Yes* | OpenAI API key (*not needed with `--local` flag) |
-| `MINTLIFY_DATA_DIR` | No | Override data directory (default: `~/.mintlify-mcp`) |
+| `DOCMOLE_DATA_DIR` | No | Override data directory (default: `~/.docmole`) |
 
 ## Tech Stack
 

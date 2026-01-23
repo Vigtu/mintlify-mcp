@@ -25,7 +25,7 @@ export async function parseMintJson(
   try {
     const response = await fetch(mintUrl, {
       headers: {
-        "User-Agent": "mintlify-mcp/1.0",
+        "User-Agent": "docmole/1.0",
         Accept: "application/json",
       },
     });

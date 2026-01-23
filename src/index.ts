@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-// Mintlify API mode imports
+// docmole - AI documentation assistant that digs through any docs site
 import { createMintlifyBackend } from "./backends/mintlify";
 // Legacy commands (kept for backward compatibility)
 import { createCommand } from "./cli/create";
@@ -29,7 +29,7 @@ const KNOWN_DOCS: Record<string, { name: string; domain: string }> = {
 // CLI
 // =============================================================================
 
-const CLI_NAME = "mintlify-mcp"; // TODO: will be renamed
+const CLI_NAME = "docmole";
 
 function showHelp(): void {
   console.log(`

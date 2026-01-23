@@ -282,7 +282,7 @@ def create_agent_os(
 # Initialize at module level using environment variables
 # These are set by main() before serve() reimports the module
 _project_id = os.environ.get("AGNO_PROJECT_ID")
-_data_dir = Path(os.environ.get("AGNO_DATA_DIR", Path.home() / ".mintlify-mcp"))
+_data_dir = Path(os.environ.get("AGNO_DATA_DIR", Path.home() / ".docmole"))
 _model_id = os.environ.get("AGNO_MODEL_ID", "gpt-4o-mini")
 
 if _project_id:
@@ -312,8 +312,8 @@ def main():
     parser.add_argument(
         "--data-dir",
         type=Path,
-        default=Path.home() / ".mintlify-mcp",
-        help="Data directory (default: ~/.mintlify-mcp)",
+        default=Path.home() / ".docmole",
+        help="Data directory (default: ~/.docmole)",
     )
     parser.add_argument(
         "--model",

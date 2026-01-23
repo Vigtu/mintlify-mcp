@@ -28,7 +28,7 @@ export async function parseSitemap(baseUrl: string): Promise<DiscoveredPage[]> {
   try {
     const response = await fetch(sitemapUrl, {
       headers: {
-        "User-Agent": "mintlify-mcp/1.0",
+        "User-Agent": "docmole/1.0",
         Accept: "application/xml, text/xml, */*",
       },
     });

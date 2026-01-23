@@ -1,6 +1,6 @@
 # Architecture Plan
 
-Research and planning document for mintlify-mcp architecture evolution.
+Research and planning document for docmole architecture evolution.
 
 ## Project Goal
 
@@ -9,7 +9,7 @@ Create MCPs for any documentation site, publishable to npm, with potential for s
 ## Current Architecture
 
 ```
-User → bunx mintlify-mcp → TypeScript MCP → Python RAG Server → Knowledge Base
+User → bunx docmole → TypeScript MCP → Python RAG Server → Knowledge Base
 ```
 
 ### Current Modes
@@ -38,7 +38,7 @@ User → bunx mintlify-mcp → TypeScript MCP → Python RAG Server → Knowledg
 ## Proposed Architecture
 
 ```
-mintlify-mcp (npm)
+docmole (npm)
 │
 ├── 🚀 Remote Mode (default)
 │   └── Mintlify API (sites with AI Assistant)
@@ -50,7 +50,7 @@ mintlify-mcp (npm)
 │   └── JavaScript vector store (vectra/hnswlib-node)
 │       - NO Python required
 │       - Uses OpenAI Embeddings API
-│       - Vectors stored in ~/.mintlify-mcp/vectors/<project>/
+│       - Vectors stored in ~/.docmole/vectors/<project>/
 │       - Single process, npm-ready
 │
 └── 🔧 External Mode (advanced/submodule)
@@ -98,7 +98,7 @@ setup --url <docs-url> --id <project>
     ├── 2. Fetch markdown content
     ├── 3. Chunk documents
     ├── 4. Generate embeddings (OpenAI API)
-    └── 5. Store vectors locally (~/.mintlify-mcp/vectors/<project>/)
+    └── 5. Store vectors locally (~/.docmole/vectors/<project>/)
 
 serve --project <project>
     │
@@ -114,7 +114,7 @@ serve --project <project>
 ### File Structure
 
 ```
-~/.mintlify-mcp/
+~/.docmole/
 ├── projects/
 │   └── <project-id>/
 │       ├── config.yaml
@@ -184,11 +184,11 @@ class EmbeddedBackend implements Backend {
 **CLI Changes**:
 ```bash
 # Embedded mode (new default for local)
-bunx mintlify-mcp setup --url https://docs.example.com --id my-docs
+bunx docmole setup --url https://docs.example.com --id my-docs
 
 # Explicit mode selection
-bunx mintlify-mcp setup --url https://docs.example.com --id my-docs --mode embedded
-bunx mintlify-mcp setup --url https://docs.example.com --id my-docs --mode external
+bunx docmole setup --url https://docs.example.com --id my-docs --mode embedded
+bunx docmole setup --url https://docs.example.com --id my-docs --mode external
 ```
 
 ### Phase 2: Optimization

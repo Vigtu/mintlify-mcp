@@ -26,7 +26,7 @@ type MockRetriever = Pick<KnowledgeRetriever, "retrieve">;
 const TEST_DATA_DIR = join(import.meta.dir, ".test-embedded-data");
 
 beforeAll(async () => {
-  process.env.MINTLIFY_DATA_DIR = TEST_DATA_DIR;
+  process.env.DOCMOLE_DATA_DIR = TEST_DATA_DIR;
   await mkdir(TEST_DATA_DIR, { recursive: true });
 });
 

@@ -167,7 +167,7 @@ version: '3.8'
 
 services:
   rag-server:
-    image: mintlify-mcp-server:latest
+    image: docmole-server:latest
     ports:
       - "7777:7777"
     environment:
@@ -220,7 +220,7 @@ spec:
     spec:
       containers:
         - name: rag-server
-          image: mintlify-mcp-server:latest
+          image: docmole-server:latest
           ports:
             - containerPort: 7777
           env:
@@ -254,10 +254,10 @@ spec:
 
 ```bash
 # Via npm
-npm install -g mintlify-mcp
+npm install -g docmole
 
 # Or via Claude Code
-claude mcp add react-docs -- mintlify-mcp connect --server http://rag.internal:7777 --agent react-docs
+claude mcp add react-docs -- docmole connect --server http://rag.internal:7777 --agent react-docs
 ```
 
 ### 2. Configure via Environment
@@ -273,11 +273,11 @@ export MINTLIFY_MCP_SERVER=http://rag.internal:7777
 {
   "mcpServers": {
     "react-docs": {
-      "command": "mintlify-mcp",
+      "command": "docmole",
       "args": ["connect", "--server", "http://rag.internal:7777", "--agent", "react-docs"]
     },
     "python-docs": {
-      "command": "mintlify-mcp",
+      "command": "docmole",
       "args": ["connect", "--server", "http://rag.internal:7777", "--agent", "python-docs"]
     }
   }
@@ -304,7 +304,7 @@ npx @company/mcp-config install
 
 ```bash
 # From admin machine
-mintlify-mcp admin seed \
+docmole admin seed \
   --server http://rag.internal:7777 \
   --agent new-framework-docs \
   --url https://internal-docs.company.com/new-framework \
@@ -315,12 +315,12 @@ mintlify-mcp admin seed \
 
 ```bash
 # Incremental update (only changed pages)
-mintlify-mcp admin update \
+docmole admin update \
   --server http://rag.internal:7777 \
   --agent react-docs
 
 # Full reseed
-mintlify-mcp admin seed \
+docmole admin seed \
   --server http://rag.internal:7777 \
   --agent react-docs \
   --force
@@ -407,11 +407,11 @@ Run both modes during transition:
 {
   "mcpServers": {
     "react-docs-cloud": {
-      "command": "mintlify-mcp",
+      "command": "docmole",
       "args": ["-p", "react"]
     },
     "react-docs-internal": {
-      "command": "mintlify-mcp",
+      "command": "docmole",
       "args": ["connect", "--server", "http://rag.internal:7777", "--agent", "react-docs"]
     }
   }

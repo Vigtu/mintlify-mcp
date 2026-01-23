@@ -1,10 +1,10 @@
 # Universal Documentation Support
 
-Research and implementation plan for supporting any documentation source, making mintlify-mcp completely agnostic.
+Research and implementation plan for supporting any documentation source, making docmole completely agnostic.
 
 ## Problem Statement
 
-Currently, mintlify-mcp has limited source support:
+Currently, docmole has limited source support:
 
 ```
 Current State:
@@ -66,7 +66,7 @@ Current State:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    mintlify-mcp setup                        │
+│                    docmole setup                        │
 │                                                              │
 │   SOURCE DETECTION                         OUTPUT            │
 │   ─────────────────                        ──────            │
@@ -274,7 +274,7 @@ async function setup(options: SetupOptions) {
 
 #### Acceptance Criteria - Phase 1
 
-- [ ] `mintlify-mcp setup --url https://any-docs-site.com --id my-docs` works
+- [ ] `docmole setup --url https://any-docs-site.com --id my-docs` works
 - [ ] Automatically detects Mintlify vs generic sites
 - [ ] Extracts clean markdown from HTML pages
 - [ ] Discovers pages via sitemap.xml or link crawling
@@ -307,10 +307,10 @@ async function setup(options: SetupOptions) {
 ##### 2.3 CLI Commands
 ```bash
 # From GitHub repo
-mintlify-mcp setup --repo https://github.com/user/project --id my-project
+docmole setup --repo https://github.com/user/project --id my-project
 
 # From local path
-mintlify-mcp setup --path ./my-project --id my-project
+docmole setup --path ./my-project --id my-project
 ```
 
 #### Reference Implementation
@@ -352,7 +352,7 @@ async function fetchWithRateLimit(urls: string[]) {
 ### Caching
 
 ```
-~/.mintlify-mcp/
+~/.docmole/
 └── projects/
     └── <project-id>/
         ├── config.yaml
@@ -372,25 +372,25 @@ async function fetchWithRateLimit(urls: string[]) {
 
 ```bash
 # Setup from any documentation site
-mintlify-mcp setup --url https://docs.python.org --id python-docs
-mintlify-mcp setup --url https://react.dev --id react-docs
-mintlify-mcp setup --url https://internal.company.com/docs --id internal-docs
+docmole setup --url https://docs.python.org --id python-docs
+docmole setup --url https://react.dev --id react-docs
+docmole setup --url https://internal.company.com/docs --id internal-docs
 
 # Serve (same as before)
-mintlify-mcp serve --project python-docs
+docmole serve --project python-docs
 ```
 
 ### Phase 2 (Code Repos)
 
 ```bash
 # Setup from GitHub repo
-mintlify-mcp setup --repo https://github.com/fastapi/fastapi --id fastapi-docs
+docmole setup --repo https://github.com/fastapi/fastapi --id fastapi-docs
 
 # Setup from local code
-mintlify-mcp setup --path ~/projects/my-app --id my-app-docs
+docmole setup --path ~/projects/my-app --id my-app-docs
 
 # With AI provider config
-mintlify-mcp setup --repo https://github.com/x/y --id project \
+docmole setup --repo https://github.com/x/y --id project \
   --llm-provider openai \
   --llm-model gpt-4o-mini
 ```

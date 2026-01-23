@@ -10,7 +10,7 @@ export async function listCommand(): Promise<void> {
   if (projects.length === 0) {
     console.log("No projects found.");
     console.log("\nCreate one with:");
-    console.log("  mintlify-mcp create --url <docs-url> --id <project-id>");
+    console.log("  docmole create --url <docs-url> --id <project-id>");
     return;
   }
 

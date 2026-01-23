@@ -25,39 +25,43 @@ function getHomeDir(): string {
 
   // Last resort - still better than /tmp which gets cleared
   throw new Error(
-    "Cannot determine home directory. Set HOME or MINTLIFY_DATA_DIR environment variable.",
+    "Cannot determine home directory. Set HOME or DOCMOLE_DATA_DIR environment variable.",
   );
 }
 
 const HOME = getHomeDir();
-const DATA_DIR = process.env.MINTLIFY_DATA_DIR || join(HOME, ".mintlify-mcp");
+// Support both new and legacy env vars for backwards compatibility
+const DATA_DIR =
+  process.env.DOCMOLE_DATA_DIR ||
+  process.env.MINTLIFY_DATA_DIR ||
+  join(HOME, ".docmole");
 
 export const paths = {
-  /** Root data directory: ~/.mintlify-mcp */
+  /** Root data directory: ~/.docmole */
   root: DATA_DIR,
 
-  /** Projects directory: ~/.mintlify-mcp/projects */
+  /** Projects directory: ~/.docmole/projects */
   projects: join(DATA_DIR, "projects"),
 
-  /** Global config: ~/.mintlify-mcp/global.yaml */
+  /** Global config: ~/.docmole/global.yaml */
   globalConfig: join(DATA_DIR, "global.yaml"),
 
-  /** Get project directory: ~/.mintlify-mcp/projects/{id} */
+  /** Get project directory: ~/.docmole/projects/{id} */
   project: (id: string) => join(DATA_DIR, "projects", id),
 
-  /** Get project config: ~/.mintlify-mcp/projects/{id}/config.yaml */
+  /** Get project config: ~/.docmole/projects/{id}/config.yaml */
   projectConfig: (id: string) => join(DATA_DIR, "projects", id, "config.yaml"),
 
-  /** Get project LanceDB: ~/.mintlify-mcp/projects/{id}/lancedb */
+  /** Get project LanceDB: ~/.docmole/projects/{id}/lancedb */
   projectLanceDb: (id: string) => join(DATA_DIR, "projects", id, "lancedb"),
 
-  /** Get project logs: ~/.mintlify-mcp/projects/{id}/logs */
+  /** Get project logs: ~/.docmole/projects/{id}/logs */
   projectLogs: (id: string) => join(DATA_DIR, "projects", id, "logs"),
 
-  /** Get PID file for server: ~/.mintlify-mcp/projects/{id}/agent.pid */
+  /** Get PID file for server: ~/.docmole/projects/{id}/agent.pid */
   projectPid: (id: string) => join(DATA_DIR, "projects", id, "agent.pid"),
 
-  /** Get project docs directory: ~/.mintlify-mcp/projects/{id}/docs */
+  /** Get project docs directory: ~/.docmole/projects/{id}/docs */
   projectDocs: (id: string) => join(DATA_DIR, "projects", id, "docs"),
 };
 

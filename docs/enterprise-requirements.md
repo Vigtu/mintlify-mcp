@@ -266,7 +266,7 @@ logging:
 version: '3.8'
 services:
   rag-server:
-    image: mintlify-mcp-server:latest
+    image: docmole-server:latest
     ports: ["7777:7777"]
     environment:
       - OLLAMA_HOST=http://ollama:11434
@@ -312,7 +312,7 @@ spec:
 
 ```hcl
 module "mintlify_mcp" {
-  source = "github.com/company/terraform-mintlify-mcp"
+  source = "github.com/company/terraform-docmole"
 
   cluster_name    = "rag-cluster"
   replicas        = 3
@@ -386,7 +386,7 @@ module "mintlify_mcp" {
 pg_restore -d rag /backups/rag-latest.dump
 
 # 2. Rebuild vectors (if needed)
-mintlify-mcp admin seed --server http://localhost:7777 --all --force
+docmole admin seed --server http://localhost:7777 --all --force
 
 # 3. Verify
 curl http://localhost:7777/health

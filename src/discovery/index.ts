@@ -89,7 +89,7 @@ export async function isMintlifySite(baseUrl: string): Promise<boolean> {
   try {
     const response = await fetch(`${normalizedUrl}/mint.json`, {
       method: "HEAD",
-      headers: { "User-Agent": "mintlify-mcp/1.0" },
+      headers: { "User-Agent": "docmole/1.0" },
     });
     if (response.ok) return true;
   } catch {
@@ -100,7 +100,7 @@ export async function isMintlifySite(baseUrl: string): Promise<boolean> {
   try {
     const response = await fetch(`${normalizedUrl}/sitemap.xml`, {
       method: "HEAD",
-      headers: { "User-Agent": "mintlify-mcp/1.0" },
+      headers: { "User-Agent": "docmole/1.0" },
     });
     return response.ok;
   } catch {

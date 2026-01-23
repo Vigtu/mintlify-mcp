@@ -71,14 +71,14 @@ export interface EmbeddedConfig {
 const CLOUD_CONFIG: EmbeddedConfig = {
   llm: { provider: 'openai', model: 'gpt-4o-mini' },
   embedding: { provider: 'openai', model: 'text-embedding-3-small' },
-  vectorStore: { type: 'lancedb', path: '~/.mintlify-mcp/projects/{id}/lancedb' }
+  vectorStore: { type: 'lancedb', path: '~/.docmole/projects/{id}/lancedb' }
 };
 
 // Local mode - requer Ollama rodando
 const LOCAL_CONFIG: EmbeddedConfig = {
   llm: { provider: 'ollama', model: 'llama3.2', baseUrl: 'http://localhost:11434' },
   embedding: { provider: 'ollama', model: 'nomic-embed-text' },
-  vectorStore: { type: 'lancedb', path: '~/.mintlify-mcp/projects/{id}/lancedb' }
+  vectorStore: { type: 'lancedb', path: '~/.docmole/projects/{id}/lancedb' }
 };
 ```
 
@@ -113,13 +113,13 @@ export function createEmbedder(config: EmbeddedConfig['embedding']) {
 
 ```bash
 # Cloud mode (default) - requer OPENAI_API_KEY
-bunx mintlify-mcp serve --project my-docs
+bunx docmole serve --project my-docs
 
 # Local mode - requer Ollama rodando
-bunx mintlify-mcp serve --project my-docs --local
+bunx docmole serve --project my-docs --local
 
 # Custom config
-bunx mintlify-mcp serve --project my-docs \
+bunx docmole serve --project my-docs \
   --llm-provider ollama \
   --llm-model llama3.2 \
   --embedding-provider ollama \
