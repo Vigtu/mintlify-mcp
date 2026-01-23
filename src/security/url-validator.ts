@@ -46,20 +46,58 @@ const METADATA_IPS = ["169.254.169.254", "fd00:ec2::254"];
  * Check if an IP address is private/internal
  */
 function isPrivateIP(ip: string): boolean {
+  // Remove IPv6 brackets if present (URLs use [::1] format)
+  const cleanIp = ip.replace(/^\[|\]$/g, "").toLowerCase();
+
   // Check IPv4 private ranges
   for (const range of PRIVATE_IP_RANGES) {
-    if (range.test(ip)) {
+    if (range.test(cleanIp)) {
       return true;
     }
   }
 
   // Check metadata IPs
-  if (METADATA_IPS.includes(ip)) {
+  if (METADATA_IPS.includes(cleanIp)) {
     return true;
   }
 
-  // IPv6 checks
-  if (ip.startsWith("::1") || ip.startsWith("fe80:") || ip.startsWith("fc") || ip.startsWith("fd")) {
+  // IPv6 loopback
+  if (cleanIp === "::1" || cleanIp.startsWith("::1:")) {
+    return true;
+  }
+
+  // IPv6 link-local (fe80::/10 = fe80:: to febf::)
+  if (/^fe[89ab][0-9a-f]:/.test(cleanIp)) {
+    return true;
+  }
+
+  // IPv6 unique local addresses (fc00::/7 = fc:: and fd::)
+  if (cleanIp.startsWith("fc") || cleanIp.startsWith("fd")) {
+    return true;
+  }
+
+  // IPv6 site-local (deprecated but still dangerous: fec0::/10)
+  if (/^fec[0-9a-f]:/.test(cleanIp) || /^fed[0-9a-f]:/.test(cleanIp) || /^fee[0-9a-f]:/.test(cleanIp) || /^fef[0-9a-f]:/.test(cleanIp)) {
+    return true;
+  }
+
+  // IPv4-mapped IPv6 addresses (::ffff:x.x.x.x or ::ffff:xxxx:xxxx)
+  // These embed IPv4 addresses in IPv6 format and must be checked
+  if (cleanIp.startsWith("::ffff:")) {
+    const ipv4Part = cleanIp.substring(7); // Remove "::ffff:"
+    // Check if it's dotted decimal notation (::ffff:192.168.1.1)
+    if (/^\d+\.\d+\.\d+\.\d+$/.test(ipv4Part)) {
+      for (const range of PRIVATE_IP_RANGES) {
+        if (range.test(ipv4Part)) {
+          return true;
+        }
+      }
+      if (METADATA_IPS.includes(ipv4Part)) {
+        return true;
+      }
+    }
+    // For hex notation (::ffff:c0a8:0101), block all as potentially dangerous
+    // since parsing hex IPv4 is complex and error-prone
     return true;
   }
 

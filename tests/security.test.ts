@@ -101,6 +101,55 @@ describe("URL Validation (SSRF Protection)", () => {
     });
   });
 
+  describe("SSRF - IPv6 bypass protection", () => {
+    test("blocks IPv6 loopback [::1]", () => {
+      const result = validateUrl("http://[::1]/api");
+      expect(result.valid).toBe(false);
+    });
+
+    test("blocks IPv6 link-local [fe80::1]", () => {
+      const result = validateUrl("http://[fe80::1]/api");
+      expect(result.valid).toBe(false);
+    });
+
+    test("blocks IPv6 link-local [feb0::1]", () => {
+      const result = validateUrl("http://[feb0::1]/api");
+      expect(result.valid).toBe(false);
+    });
+
+    test("blocks IPv6 unique local [fd00::1]", () => {
+      const result = validateUrl("http://[fd00::1]/api");
+      expect(result.valid).toBe(false);
+    });
+
+    test("blocks IPv4-mapped IPv6 - private IP [::ffff:192.168.1.1]", () => {
+      const result = validateUrl("http://[::ffff:192.168.1.1]/api");
+      expect(result.valid).toBe(false);
+    });
+
+    test("blocks IPv4-mapped IPv6 - AWS metadata [::ffff:169.254.169.254]", () => {
+      const result = validateUrl("http://[::ffff:169.254.169.254]/latest/meta-data/");
+      expect(result.valid).toBe(false);
+    });
+
+    test("blocks IPv4-mapped IPv6 - localhost [::ffff:127.0.0.1]", () => {
+      const result = validateUrl("http://[::ffff:127.0.0.1]/api");
+      expect(result.valid).toBe(false);
+    });
+
+    test("blocks IPv4-mapped IPv6 - hex notation [::ffff:c0a8:101]", () => {
+      // c0a8:0101 = 192.168.1.1 in hex
+      const result = validateUrl("http://[::ffff:c0a8:101]/api");
+      expect(result.valid).toBe(false);
+    });
+
+    test("allows valid public IPv6 addresses", () => {
+      // 2001:db8:: is documentation prefix but valid format
+      const result = validateUrl("http://[2607:f8b0:4004:800::200e]/api");
+      expect(result.valid).toBe(true);
+    });
+  });
+
   describe("Protocol validation", () => {
     test("blocks file:// protocol", () => {
       const result = validateUrl("file:///etc/passwd");
