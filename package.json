@@ -1,6 +1,6 @@
 {
   "name": "docmole",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "description": "Dig through any documentation with AI - MCP server for Claude, Cursor, and other AI assistants",
   "main": "src/index.ts",
   "type": "module",
