@@ -1,14 +1,12 @@
 <p align="center">
   <a href="https://github.com/Vigtu/docmole">
-    <img loading="lazy" alt="docmole" src="https://raw.githubusercontent.com/Vigtu/docmole/main/assets/docmole-hero.png" width="100%"/>
+    <img loading="lazy" alt="docmole" src="https://raw.githubusercontent.com/Vigtu/docmole/main/assets/docmole-hero.svg" width="100%"/>
   </a>
 </p>
 
 # Docmole
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Vigtu/docmole/main/assets/docmole.png" alt="docmole mascot" width="120" />
-  <br />
   <em>Dig through any documentation with AI</em>
 </p>
 
