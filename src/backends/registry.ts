@@ -48,7 +48,9 @@ const cache = new Map<BackendType, BackendFactory>();
  * Load a backend dynamically with graceful error handling
  * Uses Bun's native module resolution and caching
  */
-export async function loadBackend(type: BackendType): Promise<BackendLoadResult> {
+export async function loadBackend(
+  type: BackendType,
+): Promise<BackendLoadResult> {
   // Return from cache if already loaded
   if (cache.has(type)) {
     return { success: true, factory: cache.get(type)! };
@@ -143,7 +145,10 @@ function getModulePath(type: BackendType): string {
   return `./${type}`;
 }
 
-function handleImportError(type: BackendType, error: unknown): BackendLoadResult {
+function handleImportError(
+  type: BackendType,
+  error: unknown,
+): BackendLoadResult {
   if (!(error instanceof Error)) {
     return {
       success: false,
@@ -188,7 +193,8 @@ function handleImportError(type: BackendType, error: unknown): BackendLoadResult
 /** Suggestions for when a backend fails to load */
 const BACKEND_SUGGESTIONS: Record<BackendType, string> = {
   mintlify: "Check your internet connection",
-  embedded: "Install from source (git clone + bun install) or use --backend mintlify",
+  embedded:
+    "Install from source (git clone + bun install) or use --backend mintlify",
   agno: "Install Python dependencies: pip install agno",
 };
 
